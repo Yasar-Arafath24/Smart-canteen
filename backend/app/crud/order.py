@@ -5,6 +5,7 @@ from app.models.inventory import Inventory
 from app.models.menu import MenuItem
 from app.models.order import Order, OrderItem
 from app.schemas.order import OrderCreate
+from app.utils.time import utcnow
 
 
 def create_order(db: Session, user_id: int, order: OrderCreate):
@@ -66,6 +67,7 @@ def create_order(db: Session, user_id: int, order: OrderCreate):
 
             # Reduce stock
             inventory.quantity -= item.quantity
+            inventory.last_updated = utcnow()
 
             # Keep menu_items.stock synchronized
             menu.stock = inventory.quantity
@@ -141,6 +143,12 @@ def delete_order(db: Session, order_id: int):
 
     if not order:
         return False
+
+    if order.status == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="Completed orders cannot be deleted"
+        )
 
     db.delete(order)
     db.commit()
