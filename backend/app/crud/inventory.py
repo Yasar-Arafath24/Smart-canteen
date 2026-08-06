@@ -62,6 +62,22 @@ def get_inventory_by_menu_item(db: Session, menu_item_id: int):
     )
 
 
+def get_inventory_by_id(db: Session, inventory_id: int):
+    return db.query(Inventory).filter(Inventory.id == inventory_id).first()
+
+
+def delete_inventory(db: Session, menu_item_id: int):
+    inventory = get_inventory_by_menu_item(db, menu_item_id)
+
+    if not inventory:
+        return None
+
+    db.delete(inventory)
+    db.commit()
+
+    return inventory
+
+
 def update_inventory(
     db: Session,
     menu_item_id: int,
