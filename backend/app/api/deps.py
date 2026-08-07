@@ -1,52 +1,52 @@
+from typing import Generator
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
 from sqlalchemy.orm import Session
+from jose import jwt, JWTError
 
-from app.core.config import settings
-from app.core.security import decode_access_token
 from app.db.database import get_db
-from app.models import User
-from app.repositories.user_repository import UserRepository
+from app.core.config import settings
+from app.models.user import User
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_PREFIX}/auth/login",
-    auto_error=True,
-)
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
 ) -> User:
-    credentials_exc = HTTPException(
+    """Extracts, decodes, and returns the currently logged-in user."""
+    credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = decode_access_token(token)
-        user_id = int(payload.get("sub"))
-    except (JWTError, TypeError, ValueError):
-        raise credentials_exc
-
-    user = UserRepository.get_by_id(db, user_id)
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+        
+    user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None:
-        raise credentials_exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user account",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        
     return user
 
 
 def get_current_admin(
     current_user: User = Depends(get_current_user),
 ) -> User:
+    """
+    Enforces Admin-only route authorization.
+    Rejects any users who do not have the 'admin' role.
+    """
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
+            detail="Admin access required. Action denied.",
         )
     return current_user

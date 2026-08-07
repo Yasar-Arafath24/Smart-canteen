@@ -2,16 +2,35 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.menu import Category, MenuItem
-from app.schemas.menu import MenuItemCreate, MenuItemUpdate
+from app.schemas.menu import (
+    MenuItemCreate,
+    MenuItemUpdate,
+)
 
 
 def create_menu_item(db: Session, item: MenuItemCreate):
-    category = db.query(Category).filter(Category.id == item.category_id).first()
+    # Check category exists
+    category = (
+        db.query(Category)
+        .filter(Category.id == item.category_id)
+        .first()
+    )
 
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+    if category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found",
+        )
 
-    menu_item = MenuItem(**item.model_dump())
+    menu_item = MenuItem(
+        name=item.name,
+        description=item.description,
+        price=item.price,
+        image_url=item.image_url,
+        category_id=item.category_id,
+        is_available=item.is_available,
+        stock=item.stock,
+    )
 
     db.add(menu_item)
     db.commit()
@@ -21,50 +40,86 @@ def create_menu_item(db: Session, item: MenuItemCreate):
 
 
 def get_menu_items(db: Session):
-    return db.query(MenuItem).all()
+    return (
+        db.query(MenuItem)
+        .order_by(MenuItem.id)
+        .all()
+    )
 
 
 def get_menu_item(db: Session, item_id: int):
-    item = db.query(MenuItem).filter(MenuItem.id == item_id).first()
+    menu_item = (
+        db.query(MenuItem)
+        .filter(MenuItem.id == item_id)
+        .first()
+    )
 
-    if not item:
-        raise HTTPException(status_code=404, detail="Menu item not found")
+    if menu_item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Menu item not found",
+        )
 
-    return item
+    return menu_item
 
 
-def update_menu_item(db: Session, item_id: int, updated_item: MenuItemUpdate):
-    item = db.query(MenuItem).filter(MenuItem.id == item_id).first()
+def update_menu_item(
+    db: Session,
+    item_id: int,
+    updated_item: MenuItemUpdate,
+):
+    menu_item = (
+        db.query(MenuItem)
+        .filter(MenuItem.id == item_id)
+        .first()
+    )
 
-    if not item:
-        raise HTTPException(status_code=404, detail="Menu item not found")
+    if menu_item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Menu item not found",
+        )
 
     update_data = updated_item.model_dump(exclude_unset=True)
 
     if "category_id" in update_data:
-        category = db.query(Category).filter(
-            Category.id == update_data["category_id"]
-        ).first()
+        category = (
+            db.query(Category)
+            .filter(Category.id == update_data["category_id"])
+            .first()
+        )
 
-        if not category:
-            raise HTTPException(status_code=404, detail="Category not found")
+        if category is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Category not found",
+            )
 
     for key, value in update_data.items():
-        setattr(item, key, value)
+        setattr(menu_item, key, value)
 
     db.commit()
-    db.refresh(item)
+    db.refresh(menu_item)
 
-    return item
+    return menu_item
 
 
 def delete_menu_item(db: Session, item_id: int):
-    item = db.query(MenuItem).filter(MenuItem.id == item_id).first()
+    menu_item = (
+        db.query(MenuItem)
+        .filter(MenuItem.id == item_id)
+        .first()
+    )
 
-    if not item:
-        raise HTTPException(status_code=404, detail="Menu item not found")
+    if menu_item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Menu item not found",
+        )
 
-    db.delete(item)
+    db.delete(menu_item)
     db.commit()
 
-    return {"message": "Menu item deleted successfully"}
+    return {
+        "message": "Menu item deleted successfully"
+    }

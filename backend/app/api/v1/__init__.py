@@ -1,6 +1,13 @@
 from fastapi import APIRouter
 
-from app.api import category, inventory, menu, order
+from app.api import (
+    category,
+    inventory,
+    menu,
+    order,
+    dashboard,      # <-- add this
+)
+
 from app.api.v1 import auth, users
 
 api_router = APIRouter()
@@ -11,3 +18,4 @@ api_router.include_router(order.router)
 api_router.include_router(category.router)
 api_router.include_router(menu.router)
 api_router.include_router(inventory.router)
+api_router.include_router(dashboard.router)   # <-- add this
