@@ -2,6 +2,7 @@ from app.models.user import User
 from app.models.menu import MenuItem, Category
 from app.models.order import Order, OrderItem
 from app.models.inventory import Inventory
+from app.models.payment import Payment
 
 __all__ = [
     "User",
@@ -10,4 +11,5 @@ __all__ = [
     "Order",
     "OrderItem",
     "Inventory",
+    "Payment",
 ]

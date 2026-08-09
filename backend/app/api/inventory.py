@@ -1,16 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List
+
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
+
+from app.db.database import get_db
+from app.api.deps import get_current_user, get_current_admin
+from app.models.user import User
+
+from app.schemas.inventory import (
+    InventoryCreate,
+    InventoryUpdate,
+    InventoryOut,
+)
 
 from app.crud.inventory import (
     create_inventory,
-    delete_inventory,
     get_inventory,
     get_inventory_by_id,
-    get_inventory_by_menu_item,
     update_inventory,
+    delete_inventory,
 )
-from app.db.database import get_db
-from app.schemas.inventory import InventoryCreate, InventoryOut, InventoryUpdate
+
 
 router = APIRouter(
     prefix="/inventory",
@@ -18,63 +28,125 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[InventoryOut])
-def get_all(db: Session = Depends(get_db)):
+# ============================================================
+# CUSTOMER / ADMIN
+# GET ALL INVENTORY
+# ============================================================
+
+@router.get(
+    "/",
+    response_model=List[InventoryOut],
+)
+def list_inventory(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     return get_inventory(db)
 
 
-@router.get("/{inventory_id}", response_model=InventoryOut)
-def get_one(
+# ============================================================
+# CUSTOMER / ADMIN
+# GET ONE INVENTORY
+# ============================================================
+
+@router.get(
+    "/{inventory_id}",
+    response_model=InventoryOut,
+)
+def get_one_inventory(
     inventory_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    inventory = get_inventory_by_id(db, inventory_id)
-
-    if not inventory:
-        raise HTTPException(404, "Inventory not found")
-
-    return inventory
+    return get_inventory_by_id(
+        db,
+        inventory_id,
+    )
 
 
-@router.post("/", response_model=InventoryOut, status_code=201)
+# ============================================================
+# ADMIN ONLY
+# CREATE INVENTORY
+# ============================================================
+
+@router.post(
+    "/",
+    response_model=InventoryOut,
+    status_code=status.HTTP_201_CREATED,
+)
 def create(
-    inventory: InventoryCreate,
+    inventory_data: InventoryCreate,
+    current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    return create_inventory(db, inventory)
+    return create_inventory(
+        db=db,
+        inventory_data=inventory_data,
+    )
 
 
-@router.patch("/menu-item/{menu_item_id}", response_model=InventoryOut)
-def update_by_menu_item(
-    menu_item_id: int,
-    inventory: InventoryUpdate,
-    db: Session = Depends(get_db),
-):
-    return update_inventory(db, menu_item_id, inventory)
+# ============================================================
+# ADMIN ONLY
+# UPDATE INVENTORY
+# ============================================================
 
-
-@router.put("/{inventory_id}", response_model=InventoryOut)
-def update_by_id(
+@router.put(
+    "/{inventory_id}",
+    response_model=InventoryOut,
+)
+def update(
     inventory_id: int,
-    inventory: InventoryUpdate,
+    inventory_data: InventoryUpdate,
+    current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    existing = get_inventory_by_id(db, inventory_id)
+    return update_inventory(
+        db=db,
+        inventory_id=inventory_id,
+        inventory_data=inventory_data,
+    )
 
-    if not existing:
-        raise HTTPException(404, "Inventory not found")
 
-    return update_inventory(db, existing.menu_item_id, inventory)
+# ============================================================
+# ADMIN ONLY
+# PATCH INVENTORY
+# ============================================================
 
-
-@router.delete("/menu-item/{menu_item_id}")
-def delete_by_menu_item(
-    menu_item_id: int,
+@router.patch(
+    "/{inventory_id}",
+    response_model=InventoryOut,
+)
+def patch(
+    inventory_id: int,
+    inventory_data: InventoryUpdate,
+    current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    deleted = delete_inventory(db, menu_item_id)
+    return update_inventory(
+        db=db,
+        inventory_id=inventory_id,
+        inventory_data=inventory_data,
+    )
 
-    if not deleted:
-        raise HTTPException(404, "Inventory not found")
 
-    return {"message": "Inventory deleted successfully"}
+# ============================================================
+# ADMIN ONLY
+# DELETE INVENTORY
+# ============================================================
+
+@router.delete(
+    "/{inventory_id}",
+)
+def delete(
+    inventory_id: int,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    delete_inventory(
+        db=db,
+        inventory_id=inventory_id,
+    )
+
+    return {
+        "message": "Inventory deleted successfully"
+    }

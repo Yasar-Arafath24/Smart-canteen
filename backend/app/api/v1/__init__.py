@@ -6,6 +6,7 @@ from app.api import (
     menu,
     order,
     dashboard,
+    payment,
 )
 
 from app.api.v1 import (
@@ -24,3 +25,4 @@ api_router.include_router(category.router)
 api_router.include_router(menu.router)
 api_router.include_router(inventory.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(payment.router)
