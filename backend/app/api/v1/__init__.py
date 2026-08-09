@@ -5,12 +5,17 @@ from app.api import (
     inventory,
     menu,
     order,
-    dashboard,      # <-- add this
+    dashboard,
 )
 
-from app.api.v1 import auth, users
+from app.api.v1 import (
+    auth,
+    users,
+)
+
 
 api_router = APIRouter()
+
 
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
@@ -18,4 +23,4 @@ api_router.include_router(order.router)
 api_router.include_router(category.router)
 api_router.include_router(menu.router)
 api_router.include_router(inventory.router)
-api_router.include_router(dashboard.router)   # <-- add this
+api_router.include_router(dashboard.router)
