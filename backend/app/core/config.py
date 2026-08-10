@@ -18,7 +18,20 @@ class Settings(BaseSettings):
     SUPABASE_ANON_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
 
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
+
+
+    MAIL_HOST: str = "localhost"
+    MAIL_PORT: int = 1025
+    MAIL_USERNAME: str = ""
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = "noreply@example.com"
+    MAIL_FROM_NAME: str = "Smart Canteen"
+    MAIL_STARTTLS: bool = False
+    MAIL_SSL_TLS: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

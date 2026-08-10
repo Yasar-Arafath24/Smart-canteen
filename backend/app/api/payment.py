@@ -71,12 +71,12 @@ def get_order_payment(
     "/{payment_id}/pay",
     response_model=PaymentResponse,
 )
-def pay(
+async def pay(
     payment_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return process_payment(
+    return await process_payment(
         db=db,
         payment_id=payment_id,
         user_id=current_user.id,

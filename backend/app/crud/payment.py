@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 from app.crud.notification import create_notification
 from app.models.order import Order
 from app.models.payment import Payment
+from app.models.user import User
 from app.schemas.payment import PaymentCreate
 from app.utils.time import utcnow
+from app.services.email_service import send_payment_success_email
 
 
 def create_payment(
@@ -77,7 +79,7 @@ def get_payment_by_order(
     )
 
 
-def process_payment(
+async def process_payment(
     db: Session,
     payment_id: int,
     user_id: int,
@@ -92,6 +94,18 @@ def process_payment(
         raise HTTPException(
             status_code=404,
             detail="Payment not found",
+        )
+
+    user = (
+        db.query(User)
+        .filter(User.id == payment.user_id)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
         )
 
     if payment.user_id != user_id:
@@ -133,11 +147,26 @@ def process_payment(
         db=db,
         user_id=payment.user_id,
         title="Order confirmed",
-        message=f"Your order #{payment.order_id} has been confirmed.",
+        message=f"Order #{payment.order_id} has been confirmed.",
         notification_type="order_confirmed",
     )
 
+    # Save the payment/order/notifications FIRST.
     db.commit()
     db.refresh(payment)
+
+    # Email comes AFTER the database transaction succeeds.
+    try:
+        await send_payment_success_email(
+            recipient=user.email,
+            order_id=payment.order_id,
+            amount=payment.amount,
+        )
+    except Exception as e:
+        # Email failure must not undo the successful payment.
+        print(
+            f"Failed to send payment email "
+            f"for order #{payment.order_id}: {e}"
+        )
 
     return payment
