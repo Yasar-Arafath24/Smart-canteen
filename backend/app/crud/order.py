@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.crud.notification import create_notification
 from app.models.inventory import Inventory
 from app.models.menu import MenuItem
 from app.models.order import Order, OrderItem
@@ -100,6 +101,14 @@ def create_order(
 
         db_order.total = total
 
+        create_notification(
+            db=db,
+            user_id=user_id,
+            title="Order placed",
+            message=f"Your order #{db_order.id} has been placed successfully.",
+            notification_type="order_created",
+        )
+
         db.commit()
         db.refresh(db_order)
 
@@ -174,6 +183,15 @@ def update_order_status(
 
     order.status = status
 
+    if status == "completed":
+        create_notification(
+            db=db,
+            user_id=order.user_id,
+            title="Order completed",
+            message=f"Your order #{order.id} has been completed.",
+            notification_type="order_completed",
+        )
+
     db.commit()
     db.refresh(order)
 
@@ -234,6 +252,14 @@ def cancel_order(
             )
 
     order.status = "cancelled"
+
+    create_notification(
+        db=db,
+        user_id=order.user_id,
+        title="Order cancelled",
+        message=f"Your order #{order.id} has been cancelled.",
+        notification_type="order_cancelled",
+    )
 
     db.commit()
     db.refresh(order)

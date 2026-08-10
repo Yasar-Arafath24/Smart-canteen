@@ -3,6 +3,7 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.crud.notification import create_notification
 from app.models.order import Order
 from app.models.payment import Payment
 from app.schemas.payment import PaymentCreate
@@ -119,6 +120,22 @@ def process_payment(
 
     payment.order.status = "confirmed"
     payment.order.updated_at = utcnow()
+
+    create_notification(
+        db=db,
+        user_id=payment.user_id,
+        title="Payment successful",
+        message=f"Payment for order #{payment.order_id} was successful.",
+        notification_type="payment_success",
+    )
+
+    create_notification(
+        db=db,
+        user_id=payment.user_id,
+        title="Order confirmed",
+        message=f"Your order #{payment.order_id} has been confirmed.",
+        notification_type="order_confirmed",
+    )
 
     db.commit()
     db.refresh(payment)

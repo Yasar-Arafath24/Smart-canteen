@@ -5,6 +5,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 from app.utils.time import utcnow
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.models.notification import Notification
 
 
 class User(Base):
@@ -46,3 +49,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    notifications: Mapped[list["Notification"]] = relationship(
+    "Notification",
+    back_populates="user",
+    cascade="all, delete-orphan",
+)

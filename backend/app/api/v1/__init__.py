@@ -7,6 +7,7 @@ from app.api import (
     order,
     dashboard,
     payment,
+    notification,
 )
 
 from app.api.v1 import (
@@ -26,3 +27,4 @@ api_router.include_router(menu.router)
 api_router.include_router(inventory.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(payment.router)
+api_router.include_router(notification.router)

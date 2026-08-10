@@ -7,4 +7,5 @@ from app.models import (
     OrderItem,
     Inventory,
     Payment,
+    Notification,
 )
