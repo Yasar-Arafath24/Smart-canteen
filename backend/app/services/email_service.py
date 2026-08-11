@@ -45,14 +45,23 @@ async def send_payment_success_email(
         body=f"""
         <h2>Payment successful</h2>
 
-        <p>Your payment for order <strong>#{order_id}</strong>
-        was successful.</p>
+        <p>
+            Your payment for order
+            <strong>#{order_id}</strong>
+            was successful.
+        </p>
 
-        <p><strong>Amount:</strong> {amount:.2f}</p>
+        <p>
+            <strong>Amount:</strong> {amount:.2f}
+        </p>
 
-        <p>Your order has been confirmed.</p>
+        <p>
+            Your order has been confirmed.
+        </p>
 
-        <p>Thank you for using Smart Canteen.</p>
+        <p>
+            Thank you for using Smart Canteen.
+        </p>
         """,
     )
 
@@ -68,11 +77,18 @@ async def send_order_completed_email(
         body=f"""
         <h2>Your order is completed</h2>
 
-        <p>Order <strong>#{order_id}</strong> has been completed.</p>
+        <p>
+            Order <strong>#{order_id}</strong>
+            has been completed successfully.
+        </p>
 
-        <p><strong>Total:</strong> {amount:.2f}</p>
+        <p>
+            <strong>Total:</strong> {amount:.2f}
+        </p>
 
-        <p>Thank you for using Smart Canteen.</p>
+        <p>
+            Thank you for using Smart Canteen.
+        </p>
         """,
     )
 
@@ -88,10 +104,18 @@ async def send_order_cancelled_email(
         body=f"""
         <h2>Order cancelled</h2>
 
-        <p>Your order <strong>#{order_id}</strong> has been cancelled.</p>
+        <p>
+            Your order <strong>#{order_id}</strong>
+            has been cancelled.
+        </p>
 
-        <p><strong>Order total:</strong> {amount:.2f}</p>
+        <p>
+            <strong>Order total:</strong> {amount:.2f}
+        </p>
 
-        <p>If you have any questions, please contact the canteen.</p>
+        <p>
+            If you have any questions,
+            please contact the canteen.
+        </p>
         """,
     )

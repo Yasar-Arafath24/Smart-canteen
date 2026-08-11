@@ -29,6 +29,10 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------
+# CREATE ORDER
+# ---------------------------------------------------------
+
 @router.post(
     "/",
     response_model=OrderResponse,
@@ -46,6 +50,10 @@ def create(
     )
 
 
+# ---------------------------------------------------------
+# CUSTOMER'S ORDERS
+# ---------------------------------------------------------
+
 @router.get(
     "/me",
     response_model=List[OrderResponse],
@@ -59,6 +67,10 @@ def list_my_orders(
         user_id=current_user.id,
     )
 
+
+# ---------------------------------------------------------
+# ADMIN - ALL ORDERS
+# ---------------------------------------------------------
 
 @router.get(
     "/",
@@ -75,16 +87,20 @@ def list_all_orders(
     )
 
 
+# ---------------------------------------------------------
+# CANCEL MY ORDER
+# ---------------------------------------------------------
+
 @router.patch(
     "/{order_id}/cancel",
     response_model=OrderResponse,
 )
-def cancel_my_order(
+async def cancel_my_order(
     order_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    order = cancel_order(
+    order = await cancel_order(
         db=db,
         order_id=order_id,
         user_id=current_user.id,
@@ -99,6 +115,10 @@ def cancel_my_order(
     return order
 
 
+# ---------------------------------------------------------
+# GET ONE ORDER
+# ---------------------------------------------------------
+
 @router.get(
     "/{order_id}",
     response_model=OrderResponse,
@@ -108,7 +128,10 @@ def get_one(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    order = get_order(db, order_id)
+    order = get_order(
+        db=db,
+        order_id=order_id,
+    )
 
     if not order:
         raise HTTPException(
@@ -116,9 +139,11 @@ def get_one(
             detail="Order not found",
         )
 
+    # Admin can view any order
     if current_user.role == "admin":
         return order
 
+    # Customer can only view their own order
     if order.user_id != current_user.id:
         raise HTTPException(
             status_code=403,
@@ -128,17 +153,24 @@ def get_one(
     return order
 
 
+# ---------------------------------------------------------
+# ADMIN - UPDATE ORDER STATUS
+# ---------------------------------------------------------
+
 @router.patch(
     "/{order_id}/status",
     response_model=OrderResponse,
 )
-def change_order_status(
+async def change_order_status(
     order_id: int,
     status_update: str,
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    order = get_order(db, order_id)
+    order = get_order(
+        db=db,
+        order_id=order_id,
+    )
 
     if not order:
         raise HTTPException(
@@ -146,7 +178,7 @@ def change_order_status(
             detail="Order not found",
         )
 
-    return update_order_status(
+    return await update_order_status(
         db=db,
         order_id=order_id,
         status=status_update,

@@ -5,7 +5,12 @@ from app.crud.notification import create_notification
 from app.models.inventory import Inventory
 from app.models.menu import MenuItem
 from app.models.order import Order, OrderItem
+from app.models.user import User
 from app.schemas.order import OrderCreate
+from app.services.email_service import (
+    send_order_cancelled_email,
+    send_order_completed_email,
+)
 from app.utils.time import utcnow
 
 
@@ -51,7 +56,10 @@ def create_order(
             if not menu:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Menu item {item.menu_item_id} not found",
+                    detail=(
+                        f"Menu item "
+                        f"{item.menu_item_id} not found"
+                    ),
                 )
 
             if not menu.is_available:
@@ -79,15 +87,19 @@ def create_order(
                     status_code=400,
                     detail=(
                         f"Only {inventory.quantity} "
-                        f"{inventory.unit} left for {menu.name}"
+                        f"{inventory.unit} left for "
+                        f"{menu.name}"
                     ),
                 )
 
+            # Reduce inventory
             inventory.quantity -= item.quantity
             inventory.last_updated = utcnow()
 
+            # Synchronize menu stock
             menu.stock = inventory.quantity
 
+            # Create order item
             order_item = OrderItem(
                 order_id=db_order.id,
                 menu_item_id=menu.id,
@@ -99,13 +111,18 @@ def create_order(
 
             total += menu.price * item.quantity
 
+        # Set total
         db_order.total = total
 
+        # Database notification
         create_notification(
             db=db,
             user_id=user_id,
             title="Order placed",
-            message=f"Your order #{db_order.id} has been placed successfully.",
+            message=(
+                f"Your order #{db_order.id} "
+                f"has been placed successfully."
+            ),
             notification_type="order_created",
         )
 
@@ -146,7 +163,7 @@ def get_order(
     )
 
 
-def update_order_status(
+async def update_order_status(
     db: Session,
     order_id: int,
     status: str,
@@ -158,7 +175,8 @@ def update_order_status(
             status_code=400,
             detail=(
                 f"Invalid status '{status}'. "
-                f"Allowed: {', '.join(sorted(VALID_ORDER_STATUSES))}"
+                f"Allowed: "
+                f"{', '.join(sorted(VALID_ORDER_STATUSES))}"
             ),
         )
 
@@ -167,38 +185,79 @@ def update_order_status(
     if not order:
         return None
 
-    # Prevent changing a cancelled order
+    # Cannot modify cancelled order
     if order.status == "cancelled":
         raise HTTPException(
             status_code=400,
             detail="Cancelled orders cannot change status",
         )
 
-    # Prevent changing a completed order
+    # Cannot modify completed order
     if order.status == "completed":
         raise HTTPException(
             status_code=400,
             detail="Completed orders cannot change status",
         )
 
+    # Update status
     order.status = status
+    order.updated_at = utcnow()
+
+    # --------------------------------
+    # Completed order notification
+    # --------------------------------
 
     if status == "completed":
+
         create_notification(
             db=db,
             user_id=order.user_id,
             title="Order completed",
-            message=f"Your order #{order.id} has been completed.",
+            message=(
+                f"Your order #{order.id} "
+                f"has been completed."
+            ),
             notification_type="order_completed",
         )
+
+    # Get customer
+    user = (
+        db.query(User)
+        .filter(User.id == order.user_id)
+        .first()
+    )
+
+    # --------------------------------
+    # Commit database changes
+    # --------------------------------
 
     db.commit()
     db.refresh(order)
 
+    # --------------------------------
+    # Send completed email
+    # --------------------------------
+
+    if status == "completed" and user and user.email:
+
+        try:
+            await send_order_completed_email(
+                recipient=user.email,
+                order_id=order.id,
+                amount=float(order.total),
+            )
+
+        except Exception as email_error:
+            # Do not undo completed order
+            print(
+                "Order completed email failed:",
+                email_error,
+            )
+
     return order
 
 
-def cancel_order(
+async def cancel_order(
     db: Session,
     order_id: int,
     user_id: int,
@@ -221,13 +280,17 @@ def cancel_order(
             detail="Only pending orders can be cancelled",
         )
 
+    # --------------------------------
     # Restore inventory
+    # --------------------------------
+
     for item in order.items:
 
         inventory = (
             db.query(Inventory)
             .filter(
-                Inventory.menu_item_id == item.menu_item_id
+                Inventory.menu_item_id
+                == item.menu_item_id
             )
             .first()
         )
@@ -251,18 +314,61 @@ def cancel_order(
                 else menu_item.stock + item.quantity
             )
 
+    # --------------------------------
+    # Change order status
+    # --------------------------------
+
     order.status = "cancelled"
+    order.updated_at = utcnow()
+
+    # --------------------------------
+    # Database notification
+    # --------------------------------
 
     create_notification(
         db=db,
         user_id=order.user_id,
         title="Order cancelled",
-        message=f"Your order #{order.id} has been cancelled.",
+        message=(
+            f"Your order #{order.id} "
+            f"has been cancelled."
+        ),
         notification_type="order_cancelled",
     )
 
+    # Get customer
+    user = (
+        db.query(User)
+        .filter(User.id == order.user_id)
+        .first()
+    )
+
+    # --------------------------------
+    # Commit database first
+    # --------------------------------
+
     db.commit()
     db.refresh(order)
+
+    # --------------------------------
+    # Send cancellation email
+    # --------------------------------
+
+    if user and user.email:
+
+        try:
+            await send_order_cancelled_email(
+                recipient=user.email,
+                order_id=order.id,
+                amount=float(order.total),
+            )
+
+        except Exception as email_error:
+            # Do not undo cancellation
+            print(
+                "Order cancellation email failed:",
+                email_error,
+            )
 
     return order
 
