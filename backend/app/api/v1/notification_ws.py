@@ -9,7 +9,9 @@ router = APIRouter()
 
 
 @router.websocket("/ws/notifications")
-async def notification_websocket(websocket: WebSocket):
+async def notification_websocket(
+    websocket: WebSocket,
+):
     token = websocket.query_params.get("token")
 
     if not token:
@@ -25,7 +27,7 @@ async def notification_websocket(websocket: WebSocket):
 
         user_id = payload.get("sub")
 
-        if not user_id:
+        if user_id is None:
             await websocket.close(code=1008)
             return
 

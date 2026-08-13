@@ -1,5 +1,4 @@
 from collections import defaultdict
-
 from fastapi import WebSocket
 
 
@@ -13,7 +12,9 @@ class NotificationManager:
         websocket: WebSocket,
     ):
         await websocket.accept()
-        self.active_connections[user_id].append(websocket)
+
+        if websocket not in self.active_connections[user_id]:
+            self.active_connections[user_id].append(websocket)
 
     def disconnect(
         self,
@@ -36,7 +37,12 @@ class NotificationManager:
         user_id: int,
         message: dict,
     ):
-        connections = self.active_connections.get(user_id, [])
+        connections = list(
+            self.active_connections.get(user_id, [])
+        )
+
+        if not connections:
+            return
 
         disconnected = []
 
