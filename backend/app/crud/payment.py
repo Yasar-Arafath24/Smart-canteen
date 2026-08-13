@@ -9,6 +9,9 @@ from app.models.payment import Payment
 from app.models.user import User
 from app.schemas.payment import PaymentCreate
 from app.services.email_service import send_payment_success_email
+from app.services.notification_service import (
+    create_and_send_notification,
+)
 from app.utils.time import utcnow
 
 
@@ -151,7 +154,7 @@ async def process_payment(
     # Database notifications
     # -----------------------------
 
-    create_notification(
+    await create_and_send_notification(
         db=db,
         user_id=payment.user_id,
         title="Payment successful",

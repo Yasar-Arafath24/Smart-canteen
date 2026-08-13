@@ -14,6 +14,7 @@ from app.api.v1 import (
     auth,
     users,
     email_test,
+    notification_ws,
 )
 
 
@@ -30,3 +31,4 @@ api_router.include_router(dashboard.router)
 api_router.include_router(payment.router)
 api_router.include_router(notification.router)
 api_router.include_router(email_test.router)
+api_router.include_router(notification_ws.router)

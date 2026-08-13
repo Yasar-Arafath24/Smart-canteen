@@ -11,6 +11,9 @@ from app.services.email_service import (
     send_order_cancelled_email,
     send_order_completed_email,
 )
+from app.services.notification_service import (
+    create_and_send_notification,
+)
 from app.utils.time import utcnow
 
 
@@ -209,7 +212,7 @@ async def update_order_status(
 
     if status == "completed":
 
-        create_notification(
+        await create_and_send_notification(
             db=db,
             user_id=order.user_id,
             title="Order completed",
@@ -325,7 +328,7 @@ async def cancel_order(
     # Database notification
     # --------------------------------
 
-    create_notification(
+    await create_and_send_notification(
         db=db,
         user_id=order.user_id,
         title="Order cancelled",
