@@ -1,5 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from jose import JWTError, jwt
 
+from app.core.config import settings
 from app.services.notification_ws import notification_manager
 
 
@@ -8,15 +10,28 @@ router = APIRouter()
 
 @router.websocket("/ws/notifications")
 async def notification_websocket(websocket: WebSocket):
-    user_id = websocket.query_params.get("user_id")
+    token = websocket.query_params.get("token")
 
-    if not user_id:
+    if not token:
         await websocket.close(code=1008)
         return
 
     try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+        )
+
+        user_id = payload.get("sub")
+
+        if not user_id:
+            await websocket.close(code=1008)
+            return
+
         user_id = int(user_id)
-    except ValueError:
+
+    except (JWTError, ValueError, TypeError):
         await websocket.close(code=1008)
         return
 

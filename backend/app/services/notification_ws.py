@@ -1,10 +1,11 @@
+from collections import defaultdict
+
 from fastapi import WebSocket
 
 
-class NotificationConnectionManager:
+class NotificationManager:
     def __init__(self):
-        # user_id -> list of active WebSocket connections
-        self.active_connections: dict[int, list[WebSocket]] = {}
+        self.active_connections: dict[int, list[WebSocket]] = defaultdict(list)
 
     async def connect(
         self,
@@ -12,10 +13,6 @@ class NotificationConnectionManager:
         websocket: WebSocket,
     ):
         await websocket.accept()
-
-        if user_id not in self.active_connections:
-            self.active_connections[user_id] = []
-
         self.active_connections[user_id].append(websocket)
 
     def disconnect(
@@ -32,7 +29,7 @@ class NotificationConnectionManager:
             connections.remove(websocket)
 
         if not connections:
-            del self.active_connections[user_id]
+            self.active_connections.pop(user_id, None)
 
     async def send_to_user(
         self,
@@ -50,7 +47,10 @@ class NotificationConnectionManager:
                 disconnected.append(websocket)
 
         for websocket in disconnected:
-            self.disconnect(user_id, websocket)
+            self.disconnect(
+                user_id=user_id,
+                websocket=websocket,
+            )
 
 
-notification_manager = NotificationConnectionManager()
+notification_manager = NotificationManager()
