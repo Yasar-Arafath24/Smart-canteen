@@ -5,6 +5,9 @@ import Login from "./pages/auth/Login";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import Cart from "./pages/customer/Cart";
 import Checkout from "./pages/customer/Checkout";
+import Orders from "./pages/customer/Orders_temp";
+import OrderDetails from "./pages/customer/OrderDetails";
+
 import { CartProvider } from "./context/CartContext";
 
 function SplashScreen() {
@@ -39,9 +42,13 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 3000);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, []);
 
   if (loading) {
@@ -51,30 +58,93 @@ function App() {
   return (
     <CartProvider>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        {/* =========================
+            LOGIN
+        ========================= */}
+
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        {/* =========================
+            CUSTOMER DASHBOARD
+        ========================= */}
 
         <Route
           path="/dashboard"
           element={<CustomerDashboard />}
         />
 
-        <Route path="/cart" element={<Cart />} />
+        {/* =========================
+            CART
+        ========================= */}
 
-        <Route path="/checkout" element={<Checkout />} />
+        <Route
+          path="/cart"
+          element={<Cart />}
+        />
+
+        {/* =========================
+            CHECKOUT
+        ========================= */}
+
+        <Route
+          path="/checkout"
+          element={<Checkout />}
+        />
+
+        {/* =========================
+            MY ORDERS
+        ========================= */}
+
+        <Route
+          path="/orders"
+          element={<Orders />}
+        />
+
+        {/* =========================
+            ORDER DETAILS
+        ========================= */}
+
+        <Route
+          path="/orders/:orderId"
+          element={<OrderDetails />}
+        />
+
+        {/* =========================
+            ADMIN
+        ========================= */}
 
         <Route
           path="/admin"
-          element={<Placeholder title="Admin Dashboard" />}
+          element={
+            <Placeholder title="Admin Dashboard" />
+          }
         />
+
+        {/* =========================
+            DEFAULT
+        ========================= */}
 
         <Route
           path="/"
-          element={<Navigate to="/login" replace />}
+          element={
+            <Navigate
+              to="/login"
+              replace
+            />
+          }
         />
 
         <Route
           path="*"
-          element={<Navigate to="/login" replace />}
+          element={
+            <Navigate
+              to="/login"
+              replace
+            />
+          }
         />
       </Routes>
     </CartProvider>
