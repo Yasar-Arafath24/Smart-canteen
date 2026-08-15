@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db.database import get_db
 from app.api.deps import (
@@ -85,6 +85,9 @@ def list_all_orders(
     return (
         db.query(Order)
         .order_by(Order.id.desc())
+        .options(
+            selectinload(Order.items),
+        )
         .all()
     )
 

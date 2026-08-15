@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.crud.notification import create_notification
 from app.models.inventory import Inventory
@@ -151,6 +151,9 @@ def get_orders(
         db.query(Order)
         .filter(Order.user_id == user_id)
         .order_by(Order.id.desc())
+        .options(
+            selectinload(Order.items),
+        )
         .all()
     )
 
@@ -162,6 +165,9 @@ def get_order(
     return (
         db.query(Order)
         .filter(Order.id == order_id)
+        .options(
+            selectinload(Order.items),
+        )
         .first()
     )
 

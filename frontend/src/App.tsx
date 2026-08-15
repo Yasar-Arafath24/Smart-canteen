@@ -31,12 +31,12 @@ function App() {
   useEffect(() => {
     const fadeTimer = setTimeout(
       () => setStage("fading"),
-      3000,
+      1200,
     );
 
     const doneTimer = setTimeout(
       () => setStage("done"),
-      3500,
+      1700,
     );
 
     return () => {
