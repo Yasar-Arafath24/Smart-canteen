@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/auth/Login";
+
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import Cart from "./pages/customer/Cart";
 import Checkout from "./pages/customer/Checkout";
@@ -11,18 +12,10 @@ import Payment from "./pages/customer/Payment";
 import Notifications from "./pages/customer/Notifications";
 import Profile from "./pages/customer/Profile";
 
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
 import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-white">
-      <h1 className="text-3xl font-bold text-[#24113f]">
-        {title}
-      </h1>
-    </div>
-  );
-}
 
 function App() {
   const [stage, setStage] = useState<
@@ -30,15 +23,13 @@ function App() {
   >("splash");
 
   useEffect(() => {
-    const fadeTimer = setTimeout(
-      () => setStage("fading"),
-      1200,
-    );
+    const fadeTimer = setTimeout(() => {
+      setStage("fading");
+    }, 1200);
 
-    const doneTimer = setTimeout(
-      () => setStage("done"),
-      1700,
-    );
+    const doneTimer = setTimeout(() => {
+      setStage("done");
+    }, 1700);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -110,8 +101,8 @@ function App() {
         />
 
         {/* =========================
-              PROFILE
-          ========================= */}
+            PROFILE
+        ========================= */}
 
         <Route
           path="/profile"
@@ -137,14 +128,12 @@ function App() {
         />
 
         {/* =========================
-            ADMIN
+            ADMIN DASHBOARD
         ========================= */}
 
         <Route
           path="/admin"
-          element={
-            <Placeholder title="Admin Dashboard" />
-          }
+          element={<AdminDashboard />}
         />
 
         {/* =========================
@@ -160,6 +149,10 @@ function App() {
             />
           }
         />
+
+        {/* =========================
+            UNKNOWN ROUTES
+        ========================= */}
 
         <Route
           path="*"
