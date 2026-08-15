@@ -96,7 +96,7 @@ export default function CustomerDashboard() {
     }
 
     if (label === "Notifications") {
-      window.alert("You currently have no new notifications.");
+      navigate("/notifications");
       return;
     }
 

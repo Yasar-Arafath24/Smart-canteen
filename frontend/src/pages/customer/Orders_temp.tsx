@@ -6,12 +6,14 @@ import {
   Loader2,
   Package,
   RefreshCw,
+  Trash2,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import {
   cancelOrder,
+  deleteOrder,
   getMyOrders,
   type Order,
 } from "../../api/order";
@@ -23,6 +25,9 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancellingId, setCancellingId] = useState<number | null>(
+    null,
+  );
+  const [deletingId, setDeletingId] = useState<number | null>(
     null,
   );
 
@@ -73,6 +78,34 @@ export default function Orders() {
       );
     } finally {
       setCancellingId(null);
+    }
+  }
+
+  async function handleDelete(orderId: number) {
+    const confirmed = window.confirm(
+      `Delete order #${orderId}? This cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingId(orderId);
+      setError("");
+
+      await deleteOrder(orderId);
+
+      setOrders((currentOrders) =>
+        currentOrders.filter((order) => order.id !== orderId),
+      );
+    } catch (error: any) {
+      setError(
+        error.response?.data?.detail ||
+          "Unable to delete the order.",
+      );
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -189,7 +222,11 @@ export default function Orders() {
                 cancelling={
                   cancellingId === order.id
                 }
+                deleting={
+                  deletingId === order.id
+                }
                 onCancel={handleCancel}
+                onDelete={handleDelete}
               />
             ))}
           </div>
@@ -202,11 +239,15 @@ export default function Orders() {
 function OrderCard({
   order,
   cancelling,
+  deleting,
   onCancel,
+  onDelete,
 }: {
   order: Order;
   cancelling: boolean;
+  deleting: boolean;
   onCancel: (orderId: number) => void;
+  onDelete: (orderId: number) => void;
 }) {
   const formattedDate = new Date(
     order.created_at,
@@ -301,6 +342,30 @@ function OrderCard({
               <>
                 <X size={16} />
                 Cancel Order
+              </>
+            )}
+          </button>
+        )}
+
+        {status !== "completed" && (
+          <button
+            onClick={() => onDelete(order.id)}
+            disabled={deleting}
+            className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-500 transition hover:border-red-100 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Delete order"
+          >
+            {deleting ? (
+              <>
+                <Loader2
+                  size={16}
+                  className="animate-spin"
+                />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 size={16} />
+                Delete
               </>
             )}
           </button>

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.crud.notification import (
     count_unread_notifications,
+    delete_notification,
     get_notification,
     get_user_notifications,
     get_unread_notifications,
@@ -125,3 +126,21 @@ def mark_all_read(
         db=db,
         user_id=current_user.id,
     )
+
+
+@router.delete(
+    "/{notification_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_one_notification(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    delete_notification(
+        db=db,
+        notification_id=notification_id,
+        user_id=current_user.id,
+    )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

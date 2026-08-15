@@ -125,3 +125,31 @@ def mark_all_notifications_as_read(
     db.commit()
 
     return notifications
+
+
+def delete_notification(
+    db: Session,
+    notification_id: int,
+    user_id: int,
+):
+    notification = get_notification(
+        db=db,
+        notification_id=notification_id,
+    )
+
+    if not notification:
+        raise HTTPException(
+            status_code=404,
+            detail="Notification not found",
+        )
+
+    if notification.user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized to access this notification",
+        )
+
+    db.delete(notification)
+    db.commit()
+
+    return True

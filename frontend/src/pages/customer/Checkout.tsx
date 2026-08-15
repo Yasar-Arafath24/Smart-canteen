@@ -53,7 +53,9 @@ export default function Checkout() {
 
       clearCart();
 
-      navigate(`/orders/${response.data.id}`);
+      navigate(
+        `/payment?orderId=${response.data.id}&amount=${response.data.total}`,
+      );
     } catch (err: any) {
       const message =
         err.response?.data?.detail ||

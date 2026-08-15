@@ -34,3 +34,7 @@ export async function cancelOrder(orderId: number): Promise<Order> {
 
   return response.data;
 }
+
+export async function deleteOrder(orderId: number): Promise<void> {
+  await api.delete(`/orders/${orderId}`);
+}

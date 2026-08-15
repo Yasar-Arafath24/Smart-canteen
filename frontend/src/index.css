@@ -38,3 +38,75 @@ select {
 button {
   cursor: pointer;
 }
+
+/* ---------------------------------------------------------
+   Splash screen
+--------------------------------------------------------- */
+
+@keyframes splash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes splash-draw {
+  from {
+    stroke-dashoffset: var(--ring-c, 800);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes splash-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.splash-ring {
+  stroke-dasharray: var(--ring-c, 800);
+  stroke-dashoffset: var(--ring-c, 800);
+  animation: splash-draw 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.splash-rings {
+  animation: splash-scale 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.splash-pop {
+  opacity: 0;
+  animation: splash-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 1.15s both;
+}
+
+.splash-rise {
+  opacity: 0;
+  animation: splash-rise 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+}

@@ -1,6 +1,7 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -20,6 +21,7 @@ from app.crud.order import (
     get_order,
     update_order_status,
     cancel_order,
+    delete_order,
 )
 
 
@@ -183,3 +185,57 @@ async def change_order_status(
         order_id=order_id,
         status=status_update,
     )
+
+
+# ---------------------------------------------------------
+# DELETE ORDER
+# ---------------------------------------------------------
+
+@router.delete(
+    "/{order_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_my_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    order = get_order(
+        db=db,
+        order_id=order_id,
+    )
+
+    if not order:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    # Admin can delete any order
+    if current_user.role == "admin":
+        deleted = delete_order(db=db, order_id=order_id)
+
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail="Order not found",
+            )
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    # Customer can only delete their own order
+    if order.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized to delete this order",
+        )
+
+    deleted = delete_order(db=db, order_id=order_id)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

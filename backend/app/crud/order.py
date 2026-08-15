@@ -391,6 +391,40 @@ def delete_order(
             detail="Completed orders cannot be deleted",
         )
 
+    # --------------------------------
+    # Restore inventory
+    # --------------------------------
+
+    for item in order.items:
+
+        inventory = (
+            db.query(Inventory)
+            .filter(
+                Inventory.menu_item_id
+                == item.menu_item_id
+            )
+            .first()
+        )
+
+        menu_item = (
+            db.query(MenuItem)
+            .filter(
+                MenuItem.id == item.menu_item_id
+            )
+            .first()
+        )
+
+        if inventory:
+            inventory.quantity += item.quantity
+            inventory.last_updated = utcnow()
+
+        if menu_item:
+            menu_item.stock = (
+                inventory.quantity
+                if inventory
+                else menu_item.stock + item.quantity
+            )
+
     db.delete(order)
     db.commit()
 

@@ -7,26 +7,11 @@ import Cart from "./pages/customer/Cart";
 import Checkout from "./pages/customer/Checkout";
 import Orders from "./pages/customer/Orders_temp";
 import OrderDetails from "./pages/customer/OrderDetails";
+import Payment from "./pages/customer/Payment";
+import Notifications from "./pages/customer/Notifications";
 
 import { CartProvider } from "./context/CartContext";
-
-function SplashScreen() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#24113f]">
-      <h1 className="text-3xl font-bold tracking-tight text-white">
-        SmartCanteen
-      </h1>
-
-      <p className="mt-2 text-sm text-purple-200">
-        Loading your next meal...
-      </p>
-
-      <div className="mt-8 h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full w-1/3 animate-pulse rounded-full bg-purple-400" />
-      </div>
-    </div>
-  );
-}
+import SplashScreen from "./components/SplashScreen";
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -39,20 +24,31 @@ function Placeholder({ title }: { title: string }) {
 }
 
 function App() {
-  const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState<
+    "splash" | "fading" | "done"
+  >("splash");
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 3000);
+    const fadeTimer = setTimeout(
+      () => setStage("fading"),
+      3000,
+    );
+
+    const doneTimer = setTimeout(
+      () => setStage("done"),
+      3500,
+    );
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(fadeTimer);
+      clearTimeout(doneTimer);
     };
   }, []);
 
-  if (loading) {
-    return <SplashScreen />;
+  if (stage !== "done") {
+    return (
+      <SplashScreen fading={stage === "fading"} />
+    );
   }
 
   return (
@@ -92,6 +88,24 @@ function App() {
         <Route
           path="/checkout"
           element={<Checkout />}
+        />
+
+        {/* =========================
+            PAYMENT
+        ========================= */}
+
+        <Route
+          path="/payment"
+          element={<Payment />}
+        />
+
+        {/* =========================
+            NOTIFICATIONS
+        ========================= */}
+
+        <Route
+          path="/notifications"
+          element={<Notifications />}
         />
 
         {/* =========================
