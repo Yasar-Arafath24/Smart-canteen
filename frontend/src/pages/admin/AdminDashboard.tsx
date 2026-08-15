@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   Users,
   XCircle,
+  ClipboardList,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -56,19 +57,23 @@ export default function AdminDashboard() {
 
   const statistics = useMemo(() => {
     const pending = orders.filter(
-      (order) => order.status.toLowerCase() === "pending",
+      (order) =>
+        order.status.toLowerCase() === "pending",
     ).length;
 
     const confirmed = orders.filter(
-      (order) => order.status.toLowerCase() === "confirmed",
+      (order) =>
+        order.status.toLowerCase() === "confirmed",
     ).length;
 
     const completed = orders.filter(
-      (order) => order.status.toLowerCase() === "completed",
+      (order) =>
+        order.status.toLowerCase() === "completed",
     ).length;
 
     const cancelled = orders.filter(
-      (order) => order.status.toLowerCase() === "cancelled",
+      (order) =>
+        order.status.toLowerCase() === "cancelled",
     ).length;
 
     const revenue = orders
@@ -77,7 +82,8 @@ export default function AdminDashboard() {
           order.status.toLowerCase() !== "cancelled",
       )
       .reduce(
-        (total, order) => total + Number(order.total),
+        (total, order) =>
+          total + Number(order.total),
         0,
       );
 
@@ -151,7 +157,41 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Overview */}
+        {/* =========================
+            ADMIN ACTIONS
+        ========================= */}
+        <section className="mb-8">
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-[#32145f]">
+                  Administration
+                </p>
+
+                <h2 className="mt-1 text-xl font-bold text-[#24113f]">
+                  Order Management
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-400">
+                  Review customer orders and update their status.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigate("/admin/orders")}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#32145f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
+              >
+                <ClipboardList size={18} />
+                Manage Orders
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* =========================
+            OVERVIEW
+        ========================= */}
         <section>
           <div className="mb-5">
             <p className="text-sm text-gray-400">
@@ -190,7 +230,9 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Order status */}
+        {/* =========================
+            ORDER STATUS
+        ========================= */}
         <section className="mt-8">
           <div className="mb-5">
             <p className="text-sm text-gray-400">
@@ -233,7 +275,9 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Recent orders */}
+        {/* =========================
+            RECENT ORDERS
+        ========================= */}
         <section className="mt-8 rounded-2xl border border-gray-100 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-gray-100 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -246,9 +290,14 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            <span className="text-sm font-medium text-gray-400">
-              {orders.length} total
-            </span>
+            <button
+              type="button"
+              onClick={() => navigate("/admin/orders")}
+              className="flex items-center gap-2 self-start rounded-xl border border-purple-100 bg-purple-50 px-4 py-2 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
+            >
+              <ClipboardList size={16} />
+              View All Orders
+            </button>
           </div>
 
           {orders.length === 0 ? (
@@ -359,7 +408,9 @@ export default function AdminDashboard() {
           )}
         </section>
 
-        {/* Customers */}
+        {/* =========================
+            CUSTOMERS
+        ========================= */}
         <section className="mt-8 rounded-2xl border border-gray-100 bg-white shadow-sm">
           <div className="border-b border-gray-100 p-6">
             <h2 className="font-bold text-[#24113f]">
@@ -415,7 +466,9 @@ export default function AdminDashboard() {
           )}
         </section>
 
-        {/* Back */}
+        {/* =========================
+            BACK
+        ========================= */}
         <div className="mt-8">
           <button
             onClick={() => navigate("/dashboard")}

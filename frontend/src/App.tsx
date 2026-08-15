@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/auth/Login";
-
+import AdminOrders from "./pages/admin/AdminOrders";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import Cart from "./pages/customer/Cart";
 import Checkout from "./pages/customer/Checkout";
@@ -130,11 +130,16 @@ function App() {
         {/* =========================
             ADMIN DASHBOARD
         ========================= */}
+<Route
+  path="/admin"
+  element={<AdminDashboard />}
+/>
 
-        <Route
-          path="/admin"
-          element={<AdminDashboard />}
-        />
+<Route
+  path="/admin/orders"
+  element={<AdminOrders />}
+/>
+
 
         {/* =========================
             DEFAULT
