@@ -101,7 +101,8 @@ export default function CustomerDashboard() {
     }
 
     if (label === "Profile") {
-      window.alert("Profile section will be available soon.");
+      navigate("/profile");
+      return;
     }
   }
 

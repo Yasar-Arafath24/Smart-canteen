@@ -9,6 +9,7 @@ import Orders from "./pages/customer/Orders_temp";
 import OrderDetails from "./pages/customer/OrderDetails";
 import Payment from "./pages/customer/Payment";
 import Notifications from "./pages/customer/Notifications";
+import Profile from "./pages/customer/Profile";
 
 import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
@@ -106,6 +107,15 @@ function App() {
         <Route
           path="/notifications"
           element={<Notifications />}
+        />
+
+        {/* =========================
+              PROFILE
+          ========================= */}
+
+        <Route
+          path="/profile"
+          element={<Profile />}
         />
 
         {/* =========================

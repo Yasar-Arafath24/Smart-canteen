@@ -8,7 +8,10 @@ import {
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { createPayment } from "../../api/payment";
+import {
+  createPayment,
+  processPayment,
+} from "../../api/payment";
 
 export default function Payment() {
   const navigate = useNavigate();
@@ -17,47 +20,49 @@ export default function Payment() {
   const orderId = Number(searchParams.get("orderId"));
   const amount = Number(searchParams.get("amount"));
 
-  const [paymentMethod, setPaymentMethod] =
-    useState("upi");
-
+  const [paymentMethod, setPaymentMethod] = useState("upi");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handlePayment() {
-    if (!orderId) {
-      setError("Invalid order.");
+  if (!orderId) {
+    setError("Invalid order.");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+
+  try {
+    const pendingPayment = await createPayment({
+      order_id: orderId,
+      payment_method: paymentMethod,
+    });
+
+    const completedPayment = await processPayment(
+      pendingPayment.id,
+    );
+
+    if (completedPayment.status === "paid") {
+      navigate(`/orders/${orderId}`);
       return;
     }
 
-    setLoading(true);
-    setError("");
+    setError("Payment was not completed.");
+  } catch (err: any) {
+    const message =
+      err.response?.data?.detail ||
+      "Payment failed. Please try again.";
 
-    try {
-      const payment = await createPayment({
-        order_id: orderId,
-        payment_method: paymentMethod,
-      });
-
-      if (payment.status === "success") {
-        navigate(`/orders/${orderId}`);
-        return;
-      }
-
-      navigate(`/orders/${orderId}`);
-    } catch (err: any) {
-      const message =
-        err.response?.data?.detail ||
-        "Payment failed. Please try again.";
-
-      setError(
-        typeof message === "string"
-          ? message
-          : "Payment failed. Please try again.",
-      );
-    } finally {
-      setLoading(false);
-    }
+    setError(
+      typeof message === "string"
+        ? message
+        : "Payment failed. Please try again.",
+    );
+  } finally {
+    setLoading(false);
   }
+}
 
   if (!orderId) {
     return (
@@ -89,10 +94,13 @@ export default function Payment() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
+      {/* Header */}
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex max-w-2xl items-center px-6 py-5">
           <button
-            onClick={() => navigate(`/orders/${orderId}`)}
+            onClick={() =>
+              navigate(`/orders/${orderId}`)
+            }
             disabled={loading}
             className="flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-[#32145f] disabled:opacity-50"
           >
@@ -103,6 +111,7 @@ export default function Payment() {
       </header>
 
       <main className="mx-auto max-w-2xl px-6 py-10">
+        {/* Title */}
         <div className="mb-8">
           <p className="text-sm font-medium text-[#32145f]">
             Secure checkout
@@ -117,6 +126,7 @@ export default function Payment() {
           </p>
         </div>
 
+        {/* Error */}
         {error && (
           <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-600">
             {error}
@@ -141,13 +151,16 @@ export default function Payment() {
           </h2>
 
           <div className="mt-5 space-y-3">
+            {/* UPI */}
             <button
+              type="button"
               onClick={() => setPaymentMethod("upi")}
+              disabled={loading}
               className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition ${
                 paymentMethod === "upi"
                   ? "border-[#32145f] bg-purple-50"
                   : "border-gray-100 hover:border-purple-100"
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-60`}
             >
               <Smartphone
                 size={22}
@@ -172,13 +185,16 @@ export default function Payment() {
               )}
             </button>
 
+            {/* Card */}
             <button
+              type="button"
               onClick={() => setPaymentMethod("card")}
+              disabled={loading}
               className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition ${
                 paymentMethod === "card"
                   ? "border-[#32145f] bg-purple-50"
                   : "border-gray-100 hover:border-purple-100"
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-60`}
             >
               <CreditCard
                 size={22}
@@ -205,15 +221,20 @@ export default function Payment() {
           </div>
         </div>
 
+        {/* Pay button */}
         <button
+          type="button"
           onClick={handlePayment}
           disabled={loading}
           className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#32145f] py-4 text-sm font-semibold text-white transition hover:bg-[#421b7a] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? (
             <>
-              <Loader2 size={18} className="animate-spin" />
-              Processing...
+              <Loader2
+                size={18}
+                className="animate-spin"
+              />
+              Processing Payment...
             </>
           ) : (
             <>

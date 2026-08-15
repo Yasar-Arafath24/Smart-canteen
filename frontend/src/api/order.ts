@@ -17,17 +17,33 @@ export interface Order {
   items: OrderItem[];
 }
 
+/**
+ * Get all orders belonging to the current user.
+ */
 export async function getMyOrders(): Promise<Order[]> {
   const response = await api.get<Order[]>("/orders/me");
   return response.data;
 }
 
-export async function getOrder(orderId: number): Promise<Order> {
-  const response = await api.get<Order>(`/orders/${orderId}`);
+/**
+ * Get one order by ID.
+ */
+export async function getOrder(
+  orderId: number,
+): Promise<Order> {
+  const response = await api.get<Order>(
+    `/orders/${orderId}`,
+  );
+
   return response.data;
 }
 
-export async function cancelOrder(orderId: number): Promise<Order> {
+/**
+ * Cancel an order.
+ */
+export async function cancelOrder(
+  orderId: number,
+): Promise<Order> {
   const response = await api.patch<Order>(
     `/orders/${orderId}/cancel`,
   );
@@ -35,6 +51,11 @@ export async function cancelOrder(orderId: number): Promise<Order> {
   return response.data;
 }
 
-export async function deleteOrder(orderId: number): Promise<void> {
+/**
+ * Delete an order.
+ */
+export async function deleteOrder(
+  orderId: number,
+): Promise<void> {
   await api.delete(`/orders/${orderId}`);
 }
