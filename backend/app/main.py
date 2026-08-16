@@ -8,7 +8,7 @@ from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging, log
 from app.db.database import engine
-# from app.middleware.logging_middleware import RequestLoggingMiddleware
+from app.middleware.logging_middleware import RequestLoggingMiddleware
 from sqlalchemy import text
 
 setup_logging()
@@ -27,7 +27,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -83,17 +83,6 @@ def root():
         "version": settings.APP_VERSION,
         "status": "Running",
     }
-
-
-@app.get("/diag-ws")
-def diag_ws():
-    rows = []
-    for r in app.routes:
-        typ = type(r).__name__
-        rows.append(
-            f"{typ}: {getattr(r, 'path', getattr(r, 'prefix', '?'))}"
-        )
-    return {"count": len(app.routes), "routes": rows}
 
 
 @app.get("/health")

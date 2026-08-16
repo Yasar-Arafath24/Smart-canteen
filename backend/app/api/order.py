@@ -28,6 +28,10 @@ from app.crud.order import (
     cancel_order,
     delete_order,
 )
+from app.services.notification_service import (
+    notify_staff_new_order,
+    notify_staff_order_status,
+)
 
 
 router = APIRouter(
@@ -67,11 +71,21 @@ async def create(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return await create_order(
+    created_order = await create_order(
         db=db,
         user_id=current_user.id,
         order=order,
     )
+
+    await notify_staff_new_order(
+        db=db,
+        order_id=created_order.id,
+        total=float(created_order.total),
+    )
+
+    db.commit()
+
+    return created_order
 
 
 # ---------------------------------------------------------
@@ -182,35 +196,9 @@ def get_one(
     return order
 
 # ---------------------------------------------------------
-# ADMIN - UPDATE ORDER STATUS
+# STAFF / ADMIN - UPDATE ORDER STATUS
 # ---------------------------------------------------------
 
-@router.patch(
-    "/{order_id}/status",
-    response_model=OrderResponse,
-)
-async def change_order_status(
-    order_id: int,
-    status_update: OrderStatusUpdate,
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
-    order = get_order(
-        db=db,
-        order_id=order_id,
-    )
-
-    if not order:
-        raise HTTPException(
-            status_code=404,
-            detail="Order not found",
-        )
-
-    return await update_order_status(
-        db=db,
-        order_id=order_id,
-        status=status_update.status,
-    )
 @router.patch(
     "/{order_id}/status",
     response_model=OrderResponse,
@@ -234,11 +222,21 @@ async def change_order_status(
             detail="Order not found",
         )
 
-    return await update_order_status(
+    updated_order = await update_order_status(
         db=db,
         order_id=order_id,
         status=status_update.status,
     )
+
+    await notify_staff_order_status(
+        db=db,
+        order_id=updated_order.id,
+        new_status=updated_order.status,
+    )
+
+    db.commit()
+
+    return updated_order
 
 # ---------------------------------------------------------
 # DELETE ORDER

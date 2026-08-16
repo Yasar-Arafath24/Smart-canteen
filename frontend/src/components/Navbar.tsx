@@ -2,11 +2,13 @@ import {
   BarChart3,
   Bell,
   ClipboardList,
+  Clock,
   LayoutDashboard,
   LogOut,
   Menu,
   Package,
   ShoppingCart,
+  Tags,
   User,
   Users,
   Utensils,
@@ -80,20 +82,63 @@ const ADMIN_LINKS: NavItem[] = [
     icon: <Package size={18} />,
   },
   {
+    label: "Categories",
+    to: "/admin/categories",
+    icon: <Tags size={18} />,
+  },
+  {
+    label: "Staff Attendance",
+    to: "/admin/staff-attendance",
+    icon: <Clock size={18} />,
+  },
+  {
     label: "Analytics",
     to: "/admin/analytics",
     icon: <BarChart3 size={18} />,
   },
 ];
 
-function Navbar({ role }: { role: "customer" | "admin" }) {
+const STAFF_LINKS: NavItem[] = [
+  {
+    label: "Dashboard",
+    to: "/staff",
+    icon: <LayoutDashboard size={18} />,
+  },
+  {
+    label: "Orders",
+    to: "/staff/orders",
+    icon: <ClipboardList size={18} />,
+  },
+  {
+    label: "Inventory",
+    to: "/staff/inventory",
+    icon: <Package size={18} />,
+  },
+  {
+    label: "Attendance",
+    to: "/staff/attendance",
+    icon: <Clock size={18} />,
+  },
+  {
+    label: "Notifications",
+    to: "/staff/notifications",
+    icon: <Bell size={18} />,
+  },
+];
+
+function Navbar({ role }: { role: "customer" | "admin" | "staff" }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { totalItems } = useCart();
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const links = role === "customer" ? CUSTOMER_LINKS : ADMIN_LINKS;
+  const links =
+    role === "customer"
+      ? CUSTOMER_LINKS
+      : role === "admin"
+        ? ADMIN_LINKS
+        : STAFF_LINKS;
 
   useEffect(() => {
     setMobileOpen(false);
@@ -102,6 +147,10 @@ function Navbar({ role }: { role: "customer" | "admin" }) {
   function isActive(to: string) {
     if (to === "/admin") {
       return location.pathname === "/admin";
+    }
+
+    if (to === "/staff") {
+      return location.pathname === "/staff";
     }
 
     return location.pathname.startsWith(to);
@@ -120,7 +169,13 @@ function Navbar({ role }: { role: "customer" | "admin" }) {
         <button
           type="button"
           onClick={() =>
-            navigate(role === "customer" ? "/dashboard" : "/admin")
+            navigate(
+              role === "customer"
+                ? "/dashboard"
+                : role === "admin"
+                  ? "/admin"
+                  : "/staff",
+            )
           }
           className="flex shrink-0 items-center gap-2.5 text-left"
           title="SmartCanteen"
@@ -134,7 +189,12 @@ function Navbar({ role }: { role: "customer" | "admin" }) {
               SmartCanteen
             </span>
             <span className="block text-[10px] font-medium uppercase tracking-widest text-gray-400">
-              {role === "customer" ? "Customer" : "Admin"} Portal
+              {role === "customer"
+                ? "Customer"
+                : role === "admin"
+                  ? "Admin"
+                  : "Staff"}{" "}
+              Portal
             </span>
           </span>
         </button>

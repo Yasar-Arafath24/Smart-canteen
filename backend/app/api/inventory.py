@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.api.deps import get_current_user, get_current_admin
+from app.api.deps import (
+    get_current_user,
+    get_current_admin,
+    get_current_staff_or_admin,
+)
 from app.models.user import User
 
 from app.schemas.inventory import (
@@ -22,6 +26,10 @@ from app.crud.inventory import (
 )
 from app.services.admin_ws import (
     admin_analytics_manager,
+)
+from app.services.notification_service import (
+    notify_staff_low_stock,
+    notify_staff_out_of_stock,
 )
 
 
@@ -132,7 +140,9 @@ async def update(
 async def patch(
     inventory_id: int,
     inventory_data: InventoryUpdate,
-    current_admin: User = Depends(get_current_admin),
+    current_user: User = Depends(
+        get_current_staff_or_admin
+    ),
     db: Session = Depends(get_db),
 ):
     updated_inventory = update_inventory(
@@ -140,6 +150,57 @@ async def patch(
         inventory_id=inventory_id,
         inventory_data=inventory_data,
     )
+
+    if not updated_inventory:
+        raise HTTPException(
+            status_code=404,
+            detail="Inventory not found",
+        )
+
+    quantity = int(
+        updated_inventory.quantity
+    )
+
+    # Try to get the menu item name.
+    menu_item_name = (
+        getattr(
+            updated_inventory,
+            "menu_item_name",
+            None,
+        )
+        or getattr(
+            getattr(
+                updated_inventory,
+                "menu_item",
+                None,
+            ),
+            "name",
+            None,
+        )
+        or f"Menu Item #{updated_inventory.menu_item_id}"
+    )
+
+    unit = getattr(
+        updated_inventory,
+        "unit",
+        "units",
+    )
+
+    if quantity == 0:
+        await notify_staff_out_of_stock(
+            db=db,
+            menu_item_name=menu_item_name,
+        )
+
+    elif 0 < quantity <= 5:
+        await notify_staff_low_stock(
+            db=db,
+            menu_item_name=menu_item_name,
+            quantity=quantity,
+            unit=unit,
+        )
+
+    db.commit()
 
     await admin_analytics_manager.broadcast(
         {

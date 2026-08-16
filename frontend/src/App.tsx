@@ -15,13 +15,16 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInventory from "./pages/admin/AdminInventory";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminStaffAttendance from "./pages/admin/AdminStaffAttendance";
 import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
 import Navbar from "./components/Navbar";
 import StaffOrders from "./pages/staff/StaffOrders";
 import AdminCategories from "./pages/admin/AdminCategories";
 import StaffDashboard from "./pages/staff/StaffDashboard";
-import StaffInventory from "./pages/staff/StaffInventory"
+import StaffInventory from "./pages/staff/StaffInventory";
+import StaffNotifications from "./pages/staff/StaffNotifications";
+import StaffAttendance from "./pages/staff/StaffAttendance";
 function CustomerLayout() {
   return (
     <>
@@ -35,6 +38,15 @@ function AdminLayout() {
   return (
     <>
       <Navbar role="admin" />
+      <Outlet />
+    </>
+  );
+}
+
+function StaffLayout() {
+  return (
+    <>
+      <Navbar role="staff" />
       <Outlet />
     </>
   );
@@ -163,24 +175,44 @@ function App() {
             element={<AdminAnalytics />}
           />
 
+          <Route
+            path="/admin/staff-attendance"
+            element={<AdminStaffAttendance />}
+          />
+
         </Route>
         <Route
   path="/admin/categories"
   element={<AdminCategories />}
 />
-     <Route
-  path="/staff"
-  element={<StaffDashboard />}
-/>
-<Route
-  path="/staff/orders"
-  element={<StaffOrders />}
-/>
+        <Route element={<StaffLayout />}>
 
-<Route
-  path="/staff/inventory"
-  element={<StaffInventory />}
-/>
+          <Route
+            path="/staff"
+            element={<StaffDashboard />}
+          />
+
+          <Route
+            path="/staff/orders"
+            element={<StaffOrders />}
+          />
+
+          <Route
+            path="/staff/inventory"
+            element={<StaffInventory />}
+          />
+
+          <Route
+            path="/staff/notifications"
+            element={<StaffNotifications />}
+          />
+
+          <Route
+            path="/staff/attendance"
+            element={<StaffAttendance />}
+          />
+
+        </Route>
 
         {/* =========================
             DEFAULT

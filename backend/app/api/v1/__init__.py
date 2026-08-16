@@ -9,6 +9,7 @@ from app.api import (
     payment,
     notification,
     staff,
+    staff_attendance,
 )
 
 from app.api.v1 import (
@@ -127,4 +128,13 @@ api_router.include_router(
 
 api_router.include_router(
     staff.router
+)
+
+
+# ============================================================
+# STAFF ATTENDANCE
+# ============================================================
+
+api_router.include_router(
+    staff_attendance.router
 )

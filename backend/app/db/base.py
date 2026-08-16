@@ -8,4 +8,5 @@ from app.models import (
     Inventory,
     Payment,
     Notification,
+    StaffAttendance,
 )
