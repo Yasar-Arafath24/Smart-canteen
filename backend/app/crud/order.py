@@ -179,13 +179,17 @@ async def update_order_status(
 ):
     status = status.lower().strip()
 
+    # ---------------------------------------------------------
+    # VALID STATUS VALUES
+    # ---------------------------------------------------------
+
     if status not in VALID_ORDER_STATUSES:
         raise HTTPException(
             status_code=400,
             detail=(
                 f"Invalid status '{status}'. "
-                f"Allowed: "
-                f"{', '.join(sorted(VALID_ORDER_STATUSES))}"
+                "Allowed statuses: "
+                "pending, confirmed, completed, cancelled"
             ),
         )
 
@@ -194,27 +198,66 @@ async def update_order_status(
     if not order:
         return None
 
-    # Cannot modify cancelled order
-    if order.status == "cancelled":
+    current_status = order.status.lower().strip()
+
+    # ---------------------------------------------------------
+    # VALID STATUS TRANSITIONS
+    # ---------------------------------------------------------
+
+    valid_transitions = {
+        "pending": {
+            "confirmed",
+            "cancelled",
+        },
+        "confirmed": {
+            "completed",
+            "cancelled",
+        },
+        "completed": set(),
+        "cancelled": set(),
+    }
+
+    allowed_next_statuses = valid_transitions.get(
+        current_status,
+        set(),
+    )
+
+    # Same status
+    if status == current_status:
         raise HTTPException(
             status_code=400,
-            detail="Cancelled orders cannot change status",
+            detail=(
+                f"Order is already '{current_status}'."
+            ),
         )
 
-    # Cannot modify completed order
-    if order.status == "completed":
+    # Invalid transition
+    if status not in allowed_next_statuses:
         raise HTTPException(
             status_code=400,
-            detail="Completed orders cannot change status",
+            detail=(
+                f"Invalid order status transition: "
+                f"{current_status} -> {status}. "
+                f"Allowed next statuses: "
+                f"{', '.join(sorted(allowed_next_statuses))}"
+                if allowed_next_statuses
+                else (
+                    f"Order '{current_status}' "
+                    "cannot change status."
+                )
+            ),
         )
 
-    # Update status
+    # ---------------------------------------------------------
+    # UPDATE STATUS
+    # ---------------------------------------------------------
+
     order.status = status
     order.updated_at = utcnow()
 
-    # --------------------------------
-    # Completed order notification
-    # --------------------------------
+    # ---------------------------------------------------------
+    # COMPLETED NOTIFICATION
+    # ---------------------------------------------------------
 
     if status == "completed":
 
@@ -224,28 +267,31 @@ async def update_order_status(
             title="Order completed",
             message=(
                 f"Your order #{order.id} "
-                f"has been completed."
+                "has been completed."
             ),
             notification_type="order_completed",
         )
 
-    # Get customer
+    # ---------------------------------------------------------
+    # GET CUSTOMER
+    # ---------------------------------------------------------
+
     user = (
         db.query(User)
         .filter(User.id == order.user_id)
         .first()
     )
 
-    # --------------------------------
-    # Commit database changes
-    # --------------------------------
+    # ---------------------------------------------------------
+    # COMMIT
+    # ---------------------------------------------------------
 
     db.commit()
     db.refresh(order)
 
-    # --------------------------------
-    # Send completed email
-    # --------------------------------
+    # ---------------------------------------------------------
+    # COMPLETED EMAIL
+    # ---------------------------------------------------------
 
     if status == "completed" and user and user.email:
 
@@ -257,7 +303,6 @@ async def update_order_status(
             )
 
         except Exception as email_error:
-            # Do not undo completed order
             print(
                 "Order completed email failed:",
                 email_error,

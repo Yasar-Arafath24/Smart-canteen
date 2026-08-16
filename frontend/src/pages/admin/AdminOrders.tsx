@@ -28,12 +28,16 @@ interface Order {
   items: OrderItem[];
 }
 
-const statuses = [
-  "pending",
-  "confirmed",
-  "completed",
-  "cancelled",
-];
+/* ============================================================
+   VALID STATUS TRANSITIONS
+============================================================ */
+
+const validTransitions: Record<string, string[]> = {
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
 
 export default function AdminOrders() {
   const navigate = useNavigate();
@@ -41,10 +45,12 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<number | null>(
-    null,
-  );
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [error, setError] = useState("");
+
+  /* ============================================================
+     LOAD ORDERS
+  ============================================================ */
 
   async function loadOrders() {
     try {
@@ -68,26 +74,44 @@ export default function AdminOrders() {
     loadOrders();
   }, []);
 
+  /* ============================================================
+     REFRESH
+  ============================================================ */
+
   async function handleRefresh() {
     setRefreshing(true);
     await loadOrders();
   }
 
+  /* ============================================================
+     CHANGE ORDER STATUS
+  ============================================================ */
+
   async function handleStatusChange(
     orderId: number,
     newStatus: string,
   ) {
+    if (!newStatus) {
+      return;
+    }
+
     try {
       setUpdatingId(orderId);
       setError("");
 
+      /*
+       * IMPORTANT:
+       * Backend expects:
+       *
+       * {
+       *   "status": "confirmed"
+       * }
+       */
+
       const response = await api.patch<Order>(
         `/orders/${orderId}/status`,
-        newStatus,
         {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          status: newStatus,
         },
       );
 
@@ -107,6 +131,10 @@ export default function AdminOrders() {
       setUpdatingId(null);
     }
   }
+
+  /* ============================================================
+     STATUS ICON
+  ============================================================ */
 
   function statusIcon(status: string) {
     switch (status.toLowerCase()) {
@@ -144,6 +172,10 @@ export default function AdminOrders() {
     }
   }
 
+  /* ============================================================
+     STATUS STYLE
+  ============================================================ */
+
   function statusClass(status: string) {
     switch (status.toLowerCase()) {
       case "confirmed":
@@ -160,6 +192,33 @@ export default function AdminOrders() {
     }
   }
 
+  /* ============================================================
+     FORMAT STATUS
+  ============================================================ */
+
+  function formatStatus(status: string) {
+    return (
+      status.charAt(0).toUpperCase() +
+      status.slice(1)
+    );
+  }
+
+  /* ============================================================
+     GET AVAILABLE NEXT STATUSES
+  ============================================================ */
+
+  function getNextStatuses(status: string) {
+    return (
+      validTransitions[
+        status.toLowerCase()
+      ] || []
+    );
+  }
+
+  /* ============================================================
+     LOADING
+  ============================================================ */
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafa]">
@@ -168,18 +227,29 @@ export default function AdminOrders() {
             size={20}
             className="animate-spin"
           />
+
           Loading orders...
         </div>
       </div>
     );
   }
 
+  /* ============================================================
+     PAGE
+  ============================================================ */
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
-      {/* Header */}
+
+      {/* ======================================================
+          HEADER
+      ======================================================= */}
+
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+
           <div className="flex items-center gap-4">
+
             <button
               onClick={() => navigate("/admin")}
               className="rounded-xl border border-gray-100 p-2.5 text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
@@ -197,6 +267,7 @@ export default function AdminOrders() {
                 Order Management
               </h1>
             </div>
+
           </div>
 
           <button
@@ -212,14 +283,25 @@ export default function AdminOrders() {
                   : ""
               }
             />
+
             Refresh
           </button>
+
         </div>
       </header>
 
+      {/* ======================================================
+          MAIN
+      ======================================================= */}
+
       <main className="mx-auto max-w-7xl px-6 py-10">
-        {/* Heading */}
+
+        {/* ====================================================
+            HEADING
+        ===================================================== */}
+
         <div className="mb-8">
+
           <p className="text-sm font-medium text-[#32145f]">
             Orders
           </p>
@@ -231,17 +313,27 @@ export default function AdminOrders() {
           <p className="mt-2 text-sm text-gray-500">
             Review customer orders and update their status.
           </p>
+
         </div>
 
-        {/* Error */}
+        {/* ====================================================
+            ERROR
+        ===================================================== */}
+
         {error && (
           <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-600">
             {error}
           </div>
         )}
 
-        {/* Summary */}
+        {/* ====================================================
+            SUMMARY
+        ===================================================== */}
+
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* TOTAL */}
+
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-sm text-gray-400">
               Total Orders
@@ -251,6 +343,8 @@ export default function AdminOrders() {
               {orders.length}
             </p>
           </div>
+
+          {/* PENDING */}
 
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-sm text-gray-400">
@@ -268,6 +362,8 @@ export default function AdminOrders() {
             </p>
           </div>
 
+          {/* CONFIRMED */}
+
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-sm text-gray-400">
               Confirmed
@@ -284,6 +380,8 @@ export default function AdminOrders() {
             </p>
           </div>
 
+          {/* COMPLETED */}
+
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <p className="text-sm text-gray-400">
               Completed
@@ -299,11 +397,17 @@ export default function AdminOrders() {
               }
             </p>
           </div>
+
         </div>
 
-        {/* Orders table */}
+        {/* ====================================================
+            ORDERS TABLE
+        ===================================================== */}
+
         <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+
           <div className="border-b border-gray-100 px-6 py-5">
+
             <h3 className="font-bold text-[#24113f]">
               All Orders
             </h3>
@@ -311,19 +415,33 @@ export default function AdminOrders() {
             <p className="mt-1 text-sm text-gray-400">
               Latest orders from all customers
             </p>
+
           </div>
 
+          {/* NO ORDERS */}
+
           {orders.length === 0 ? (
+
             <div className="px-6 py-16 text-center">
               <p className="text-gray-400">
                 No orders found.
               </p>
             </div>
+
           ) : (
+
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+
+              <table className="w-full min-w-[950px]">
+
+                {/* ==================================================
+                    TABLE HEADER
+                =================================================== */}
+
                 <thead>
+
                   <tr className="border-b border-gray-100 bg-gray-50/70 text-left">
+
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       Order
                     </th>
@@ -351,106 +469,193 @@ export default function AdminOrders() {
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       Action
                     </th>
+
                   </tr>
+
                 </thead>
 
+                {/* ==================================================
+                    TABLE BODY
+                =================================================== */}
+
                 <tbody>
-                  {orders.map((order) => (
-                    <tr
-                      key={order.id}
-                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50"
-                    >
-                      <td className="px-6 py-5">
-                        <p className="font-bold text-[#24113f]">
-                          #{order.id}
-                        </p>
-                      </td>
 
-                      <td className="px-6 py-5">
-                        <p className="text-sm font-semibold text-gray-700">
-                          User #{order.user_id}
-                        </p>
-                      </td>
+                  {orders.map((order) => {
 
-                      <td className="px-6 py-5">
-                        <p className="text-sm text-gray-600">
-                          {order.items.reduce(
-                            (sum, item) =>
-                              sum + item.quantity,
-                            0,
-                          )}
-                        </p>
-                      </td>
+                    const currentStatus =
+                      order.status.toLowerCase();
 
-                      <td className="px-6 py-5">
-                        <p className="text-sm font-semibold text-gray-700">
-                          ₹{order.total.toFixed(2)}
-                        </p>
-                      </td>
+                    const nextStatuses =
+                      getNextStatuses(
+                        currentStatus,
+                      );
 
-                      <td className="px-6 py-5">
-                        <span
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${statusClass(
-                            order.status,
-                          )}`}
-                        >
-                          {statusIcon(order.status)}
-                          {order.status}
-                        </span>
-                      </td>
+                    const isUpdating =
+                      updatingId === order.id;
 
-                      <td className="px-6 py-5">
-                        <p className="text-sm text-gray-500">
-                          {new Date(
-                            order.created_at,
-                          ).toLocaleDateString()}
-                        </p>
-                      </td>
+                    const canChange =
+                      nextStatuses.length > 0;
 
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={order.status}
-                            disabled={
-                              updatingId === order.id
-                            }
-                            onChange={(event) =>
-                              handleStatusChange(
-                                order.id,
-                                event.target.value,
-                              )
-                            }
-                            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#32145f] disabled:opacity-50"
+                    return (
+
+                      <tr
+                        key={order.id}
+                        className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50"
+                      >
+
+                        {/* ORDER ID */}
+
+                        <td className="px-6 py-5">
+
+                          <p className="font-bold text-[#24113f]">
+                            #{order.id}
+                          </p>
+
+                        </td>
+
+                        {/* CUSTOMER */}
+
+                        <td className="px-6 py-5">
+
+                          <p className="text-sm font-semibold text-gray-700">
+                            User #{order.user_id}
+                          </p>
+
+                        </td>
+
+                        {/* ITEMS */}
+
+                        <td className="px-6 py-5">
+
+                          <p className="text-sm text-gray-600">
+                            {order.items.reduce(
+                              (sum, item) =>
+                                sum + item.quantity,
+                              0,
+                            )}
+                          </p>
+
+                        </td>
+
+                        {/* TOTAL */}
+
+                        <td className="px-6 py-5">
+
+                          <p className="text-sm font-semibold text-gray-700">
+                            ₹{order.total.toFixed(2)}
+                          </p>
+
+                        </td>
+
+                        {/* STATUS */}
+
+                        <td className="px-6 py-5">
+
+                          <span
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${statusClass(
+                              order.status,
+                            )}`}
                           >
-                            {statuses.map((status) => (
-                              <option
-                                key={status}
-                                value={status}
-                              >
-                                {status
-                                  .charAt(0)
-                                  .toUpperCase() +
-                                  status.slice(1)}
-                              </option>
-                            ))}
-                          </select>
+                            {statusIcon(
+                              order.status,
+                            )}
 
-                          {updatingId === order.id && (
-                            <Loader2
-                              size={17}
-                              className="animate-spin text-[#32145f]"
-                            />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {formatStatus(
+                              order.status,
+                            )}
+                          </span>
+
+                        </td>
+
+                        {/* DATE */}
+
+                        <td className="px-6 py-5">
+
+                          <p className="text-sm text-gray-500">
+                            {new Date(
+                              order.created_at,
+                            ).toLocaleDateString()}
+                          </p>
+
+                        </td>
+
+                        {/* ACTION */}
+
+                        <td className="px-6 py-5">
+
+                          <div className="flex items-center gap-2">
+
+                            <select
+                              value=""
+                              disabled={
+                                isUpdating ||
+                                !canChange
+                              }
+                              onChange={(event) =>
+                                handleStatusChange(
+                                  order.id,
+                                  event.target.value,
+                                )
+                              }
+                              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#32145f] disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
+                            >
+
+                              <option
+                                value=""
+                                disabled
+                              >
+                                {canChange
+                                  ? "Change status"
+                                  : "No changes"}
+                              </option>
+
+                              {nextStatuses.map(
+                                (nextStatus) => (
+                                  <option
+                                    key={
+                                      nextStatus
+                                    }
+                                    value={
+                                      nextStatus
+                                    }
+                                  >
+                                    {formatStatus(
+                                      nextStatus,
+                                    )}
+                                  </option>
+                                ),
+                              )}
+
+                            </select>
+
+                            {isUpdating && (
+                              <Loader2
+                                size={17}
+                                className="animate-spin text-[#32145f]"
+                              />
+                            )}
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+
+                    );
+                  })}
+
                 </tbody>
+
               </table>
+
             </div>
+
           )}
+
         </section>
+
       </main>
+
     </div>
   );
 }

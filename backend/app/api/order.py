@@ -14,6 +14,7 @@ from app.models.order import Order
 from app.schemas.order import (
     OrderCreate,
     OrderResponse,
+    OrderStatusUpdate,
 )
 from app.crud.order import (
     create_order,
@@ -157,7 +158,6 @@ def get_one(
 
     return order
 
-
 # ---------------------------------------------------------
 # ADMIN - UPDATE ORDER STATUS
 # ---------------------------------------------------------
@@ -168,7 +168,7 @@ def get_one(
 )
 async def change_order_status(
     order_id: int,
-    status_update: str,
+    status_update: OrderStatusUpdate,
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
@@ -186,9 +186,8 @@ async def change_order_status(
     return await update_order_status(
         db=db,
         order_id=order_id,
-        status=status_update,
+        status=status_update.status,
     )
-
 
 # ---------------------------------------------------------
 # DELETE ORDER

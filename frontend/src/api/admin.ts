@@ -127,11 +127,8 @@ export async function updateOrderStatus(
 ): Promise<AdminOrder> {
   const response = await api.patch<AdminOrder>(
     `/orders/${orderId}/status`,
-    status,
     {
-      headers: {
-        "Content-Type": "application/json",
-      },
+      status: status,
     },
   );
 
