@@ -1,5 +1,9 @@
 from typing import List
-
+from app.api.deps import (
+    get_current_user,
+    get_current_admin,
+    get_current_staff_or_admin,
+)
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, selectinload
@@ -35,7 +39,24 @@ router = APIRouter(
 # ---------------------------------------------------------
 # CREATE ORDER
 # ---------------------------------------------------------
-
+@router.get(
+    "/",
+    response_model=List[OrderResponse],
+)
+def list_all_orders(
+    current_user: User = Depends(
+        get_current_staff_or_admin
+    ),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(Order)
+        .order_by(Order.id.desc())
+        .options(
+            selectinload(Order.items),
+        )
+        .all()
+    )
 @router.post(
     "/",
     response_model=OrderResponse,
@@ -172,6 +193,34 @@ async def change_order_status(
     order_id: int,
     status_update: OrderStatusUpdate,
     current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    order = get_order(
+        db=db,
+        order_id=order_id,
+    )
+
+    if not order:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    return await update_order_status(
+        db=db,
+        order_id=order_id,
+        status=status_update.status,
+    )
+@router.patch(
+    "/{order_id}/status",
+    response_model=OrderResponse,
+)
+async def change_order_status(
+    order_id: int,
+    status_update: OrderStatusUpdate,
+    current_user: User = Depends(
+        get_current_staff_or_admin
+    ),
     db: Session = Depends(get_db),
 ):
     order = get_order(

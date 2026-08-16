@@ -18,7 +18,10 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
 import Navbar from "./components/Navbar";
-
+import StaffOrders from "./pages/staff/StaffOrders";
+import AdminCategories from "./pages/admin/AdminCategories";
+import StaffDashboard from "./pages/staff/StaffDashboard";
+import StaffInventory from "./pages/staff/StaffInventory"
 function CustomerLayout() {
   return (
     <>
@@ -161,7 +164,23 @@ function App() {
           />
 
         </Route>
+        <Route
+  path="/admin/categories"
+  element={<AdminCategories />}
+/>
+     <Route
+  path="/staff"
+  element={<StaffDashboard />}
+/>
+<Route
+  path="/staff/orders"
+  element={<StaffOrders />}
+/>
 
+<Route
+  path="/staff/inventory"
+  element={<StaffInventory />}
+/>
 
         {/* =========================
             DEFAULT

@@ -1,0 +1,1477 @@
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  Loader2,
+  RefreshCw,
+  Search,
+  X,
+  XCircle,
+} from "lucide-react";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import { useNavigate } from "react-router-dom";
+
+import {
+  getAllOrders,
+  updateOrderStatus,
+  type AdminOrder,
+} from "../../api/admin";
+
+/* ============================================================
+   STATUS TYPES
+============================================================ */
+
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "completed"
+  | "cancelled";
+
+type StatusFilter =
+  | "all"
+  | OrderStatus;
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function normalizeStatus(
+  status: string,
+): OrderStatus | "unknown" {
+  const normalized =
+    status?.toLowerCase().trim();
+
+  if (
+    normalized === "pending" ||
+    normalized === "confirmed" ||
+    normalized === "completed" ||
+    normalized === "cancelled"
+  ) {
+    return normalized;
+  }
+
+  return "unknown";
+}
+
+function formatDate(
+  value: string,
+) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    },
+  );
+}
+
+function formatTime(
+  value: string,
+) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleTimeString(
+    undefined,
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  );
+}
+
+/* ============================================================
+   STAFF ORDERS
+============================================================ */
+
+export default function StaffOrders() {
+  const navigate = useNavigate();
+
+  /* ==========================================================
+     DATA
+  ========================================================== */
+
+  const [orders, setOrders] =
+    useState<AdminOrder[]>([]);
+
+  /* ==========================================================
+     LOADING
+  ========================================================== */
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  /* ==========================================================
+     FILTERS
+  ========================================================== */
+
+  const [search, setSearch] =
+    useState("");
+
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>("all");
+
+  /* ==========================================================
+     ACTION STATE
+  ========================================================== */
+
+  const [updatingOrderId, setUpdatingOrderId] =
+    useState<number | null>(null);
+
+  const [confirmingOrderId, setConfirmingOrderId] =
+    useState<number | null>(null);
+
+  const [pendingStatus, setPendingStatus] =
+    useState<OrderStatus | null>(null);
+
+  /* ==========================================================
+     ALERTS
+  ========================================================== */
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  /* ==========================================================
+     LOAD ORDERS
+  ========================================================== */
+
+  async function loadOrders(
+    showInitialLoading = true,
+  ) {
+    try {
+      if (showInitialLoading) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
+      setError("");
+
+      const data =
+        await getAllOrders();
+
+      setOrders(
+        Array.isArray(data)
+          ? data
+          : [],
+      );
+    } catch (err: any) {
+      console.error(
+        "Staff orders load error:",
+        err,
+      );
+
+      setError(
+        err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          "Unable to load orders.",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  /* ==========================================================
+     REFRESH
+  ========================================================== */
+
+  async function handleRefresh() {
+    await loadOrders(false);
+  }
+
+  /* ==========================================================
+     STATISTICS
+  ========================================================== */
+
+  const statistics = useMemo(() => {
+    const pending =
+      orders.filter(
+        (order) =>
+          normalizeStatus(
+            order.status,
+          ) === "pending",
+      ).length;
+
+    const confirmed =
+      orders.filter(
+        (order) =>
+          normalizeStatus(
+            order.status,
+          ) === "confirmed",
+      ).length;
+
+    const completed =
+      orders.filter(
+        (order) =>
+          normalizeStatus(
+            order.status,
+          ) === "completed",
+      ).length;
+
+    const cancelled =
+      orders.filter(
+        (order) =>
+          normalizeStatus(
+            order.status,
+          ) === "cancelled",
+      ).length;
+
+    return {
+      total: orders.length,
+      pending,
+      confirmed,
+      completed,
+      cancelled,
+    };
+  }, [orders]);
+
+  /* ==========================================================
+     FILTERED ORDERS
+  ========================================================== */
+
+  const filteredOrders =
+    useMemo(() => {
+      const query =
+        search.trim().toLowerCase();
+
+      return [...orders]
+        .sort(
+          (a, b) =>
+            new Date(
+              b.created_at,
+            ).getTime() -
+            new Date(
+              a.created_at,
+            ).getTime(),
+        )
+        .filter((order) => {
+          const status =
+            normalizeStatus(
+              order.status,
+            );
+
+          const matchesSearch =
+            !query ||
+            String(order.id).includes(
+              query,
+            ) ||
+            String(
+              order.user_id,
+            ).includes(query);
+
+          const matchesStatus =
+            statusFilter ===
+              "all" ||
+            status === statusFilter;
+
+          return (
+            matchesSearch &&
+            matchesStatus
+          );
+        });
+    }, [
+      orders,
+      search,
+      statusFilter,
+    ]);
+
+  /* ==========================================================
+     OPEN STATUS CONFIRMATION
+  ========================================================== */
+
+  function openStatusConfirmation(
+    orderId: number,
+    status: OrderStatus,
+  ) {
+    setConfirmingOrderId(
+      orderId,
+    );
+
+    setPendingStatus(status);
+
+    setError("");
+    setSuccess("");
+  }
+
+  /* ==========================================================
+     CLOSE CONFIRMATION
+  ========================================================== */
+
+  function closeStatusConfirmation() {
+    if (
+      updatingOrderId !== null
+    ) {
+      return;
+    }
+
+    setConfirmingOrderId(null);
+    setPendingStatus(null);
+  }
+
+  /* ==========================================================
+     VALID ACTIONS
+  ========================================================== */
+
+  function getAllowedActions(
+    status: OrderStatus | "unknown",
+  ): OrderStatus[] {
+    switch (status) {
+      case "pending":
+        return [
+          "confirmed",
+          "cancelled",
+        ];
+
+      case "confirmed":
+        return ["completed"];
+
+      case "completed":
+        return [];
+
+      case "cancelled":
+        return [];
+
+      default:
+        return [];
+    }
+  }
+
+  /* ==========================================================
+     UPDATE STATUS
+  ========================================================== */
+
+  async function handleStatusUpdate() {
+    if (
+      confirmingOrderId === null ||
+      pendingStatus === null
+    ) {
+      return;
+    }
+
+    const order =
+      orders.find(
+        (item) =>
+          item.id ===
+          confirmingOrderId,
+      );
+
+    if (!order) {
+      setError(
+        "Order not found.",
+      );
+      closeStatusConfirmation();
+      return;
+    }
+
+    const currentStatus =
+      normalizeStatus(
+        order.status,
+      );
+
+    const allowed =
+      getAllowedActions(
+        currentStatus,
+      );
+
+    if (
+      !allowed.includes(
+        pendingStatus,
+      )
+    ) {
+      setError(
+        `Invalid transition from "${currentStatus}" to "${pendingStatus}".`,
+      );
+
+      closeStatusConfirmation();
+      return;
+    }
+
+    try {
+      setUpdatingOrderId(
+        confirmingOrderId,
+      );
+
+      setError("");
+      setSuccess("");
+
+      const updated =
+        await updateOrderStatus(
+          confirmingOrderId,
+          pendingStatus,
+        );
+
+      setOrders((current) =>
+        current.map(
+          (currentOrder) =>
+            currentOrder.id ===
+            updated.id
+              ? updated
+              : currentOrder,
+        ),
+      );
+
+      const statusLabel =
+        pendingStatus
+          .charAt(0)
+          .toUpperCase() +
+        pendingStatus.slice(1);
+
+      setSuccess(
+        `Order #${updated.id} is now ${statusLabel}.`,
+      );
+
+      closeStatusConfirmation();
+
+      window.setTimeout(() => {
+        setSuccess("");
+      }, 2500);
+    } catch (err: any) {
+      console.error(
+        "Staff order status error:",
+        err,
+      );
+
+      setError(
+        err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          "Unable to update order status.",
+      );
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  }
+
+  /* ==========================================================
+     LOADING
+  ========================================================== */
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa]">
+        <div className="flex items-center gap-3 text-sm text-gray-400">
+          <Loader2
+            size={20}
+            className="animate-spin"
+          />
+          Loading staff orders...
+        </div>
+      </div>
+    );
+  }
+
+  /* ==========================================================
+     MAIN
+  ========================================================== */
+
+  return (
+    <div className="min-h-screen bg-[#fafafa] text-gray-900">
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
+      <header className="border-b border-[#24113f] bg-[#32145f]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+
+          <div className="flex items-center gap-4">
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/staff")
+              }
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white transition hover:bg-white/20"
+              title="Back to staff dashboard"
+            >
+              <ArrowLeft
+                size={18}
+              />
+            </button>
+
+            <div>
+              <p className="text-sm font-medium text-purple-200">
+                Staff Portal
+              </p>
+
+              <h1 className="mt-1 text-2xl font-bold text-white">
+                Order Management
+              </h1>
+
+              <p className="mt-1 text-sm text-purple-200">
+                Review customer orders and update their status.
+              </p>
+            </div>
+
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              handleRefresh
+            }
+            disabled={refreshing}
+            className="flex items-center gap-2 self-start rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
+          >
+            <RefreshCw
+              size={17}
+              className={
+                refreshing
+                  ? "animate-spin"
+                  : ""
+              }
+            />
+
+            {refreshing
+              ? "Refreshing..."
+              : "Refresh"}
+          </button>
+
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl px-6 py-10">
+
+        {/* ====================================================
+            ERROR
+        ==================================================== */}
+
+        {error && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
+
+            <AlertCircle
+              size={20}
+              className="mt-0.5 shrink-0"
+            />
+
+            <div className="flex-1">
+              <p className="font-semibold">
+                Something went wrong
+              </p>
+
+              <p className="mt-1">
+                {error}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setError("")
+              }
+              className="text-red-400 hover:text-red-600"
+            >
+              <X size={18} />
+            </button>
+
+          </div>
+        )}
+
+        {/* ====================================================
+            SUCCESS
+        ==================================================== */}
+
+        {success && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
+
+            <CheckCircle2
+              size={20}
+              className="mt-0.5 shrink-0"
+            />
+
+            <p className="font-semibold">
+              {success}
+            </p>
+
+          </div>
+        )}
+
+        {/* ====================================================
+            SUMMARY
+        ==================================================== */}
+
+        <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+
+          <OrderStat
+            label="All Orders"
+            value={statistics.total}
+            icon={
+              <ClipboardList
+                size={20}
+              />
+            }
+          />
+
+          <OrderStat
+            label="Pending"
+            value={statistics.pending}
+            icon={
+              <Clock3 size={20} />
+            }
+            className="bg-yellow-50 text-yellow-700"
+          />
+
+          <OrderStat
+            label="Confirmed"
+            value={statistics.confirmed}
+            icon={
+              <CheckCircle2
+                size={20}
+              />
+            }
+            className="bg-purple-50 text-[#32145f]"
+          />
+
+          <OrderStat
+            label="Completed"
+            value={statistics.completed}
+            icon={
+              <CheckCircle2
+                size={20}
+              />
+            }
+            className="bg-green-50 text-green-700"
+          />
+
+          <OrderStat
+            label="Cancelled"
+            value={statistics.cancelled}
+            icon={
+              <XCircle size={20} />
+            }
+            className="bg-red-50 text-red-600"
+          />
+
+        </section>
+
+        {/* ====================================================
+            FILTERS
+        ==================================================== */}
+
+        <section className="mb-8 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+
+            {/* SEARCH */}
+
+            <div className="relative w-full xl:max-w-xl">
+
+              <Search
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+
+              <input
+                type="text"
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value,
+                  )
+                }
+                placeholder="Search Order ID or Customer ID..."
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-purple-300 focus:bg-white focus:ring-2 focus:ring-purple-100"
+              />
+
+            </div>
+
+            {/* STATUS FILTERS */}
+
+            <div className="flex flex-wrap gap-2">
+
+              <FilterButton
+                active={
+                  statusFilter ===
+                  "all"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "all",
+                  )
+                }
+              >
+                All
+                <span>
+                  {statistics.total}
+                </span>
+              </FilterButton>
+
+              <FilterButton
+                active={
+                  statusFilter ===
+                  "pending"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "pending",
+                  )
+                }
+              >
+                Pending
+                <span>
+                  {statistics.pending}
+                </span>
+              </FilterButton>
+
+              <FilterButton
+                active={
+                  statusFilter ===
+                  "confirmed"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "confirmed",
+                  )
+                }
+              >
+                Confirmed
+                <span>
+                  {statistics.confirmed}
+                </span>
+              </FilterButton>
+
+              <FilterButton
+                active={
+                  statusFilter ===
+                  "completed"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "completed",
+                  )
+                }
+              >
+                Completed
+                <span>
+                  {statistics.completed}
+                </span>
+              </FilterButton>
+
+              <FilterButton
+                active={
+                  statusFilter ===
+                  "cancelled"
+                }
+                onClick={() =>
+                  setStatusFilter(
+                    "cancelled",
+                  )
+                }
+              >
+                Cancelled
+                <span>
+                  {statistics.cancelled}
+                </span>
+              </FilterButton>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* ====================================================
+            ORDER TABLE
+        ==================================================== */}
+
+        <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+
+          <div className="flex flex-col gap-2 border-b border-gray-100 p-6 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <h2 className="font-bold text-[#24113f]">
+                Customer Orders
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-400">
+                {filteredOrders.length}{" "}
+                order
+                {filteredOrders.length !==
+                1
+                  ? "s"
+                  : ""}{" "}
+                shown
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+              Staff actions follow valid order transitions
+            </div>
+
+          </div>
+
+          {filteredOrders.length ===
+          0 ? (
+
+            <div className="p-16 text-center">
+
+              <ClipboardList
+                size={44}
+                className="mx-auto text-gray-300"
+              />
+
+              <h3 className="mt-5 font-semibold text-[#24113f]">
+                No orders found
+              </h3>
+
+              <p className="mt-1 text-sm text-gray-400">
+                Try changing your search or status filter.
+              </p>
+
+            </div>
+
+          ) : (
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full min-w-[1050px]">
+
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-400">
+
+                    <th className="px-6 py-4">
+                      Order
+                    </th>
+
+                    <th className="px-6 py-4">
+                      Customer
+                    </th>
+
+                    <th className="px-6 py-4">
+                      Items
+                    </th>
+
+                    <th className="px-6 py-4">
+                      Total
+                    </th>
+
+                    <th className="px-6 py-4">
+                      Status
+                    </th>
+
+                    <th className="px-6 py-4">
+                      Date
+                    </th>
+
+                    <th className="px-6 py-4 text-right">
+                      Actions
+                    </th>
+
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-gray-100">
+
+                  {filteredOrders.map(
+                    (order) => {
+
+                      const status =
+                        normalizeStatus(
+                          order.status,
+                        );
+
+                      const actions =
+                        getAllowedActions(
+                          status,
+                        );
+
+                      const itemCount =
+                        order.items?.reduce(
+                          (
+                            sum,
+                            item,
+                          ) =>
+                            sum +
+                            item.quantity,
+                          0,
+                        ) ?? 0;
+
+                      const isUpdating =
+                        updatingOrderId ===
+                        order.id;
+
+                      return (
+                        <tr
+                          key={order.id}
+                          className="transition hover:bg-gray-50"
+                        >
+
+                          {/* ORDER */}
+
+                          <td className="px-6 py-5">
+
+                            <p className="font-bold text-[#24113f]">
+                              #{order.id}
+                            </p>
+
+                            <p className="mt-1 text-xs text-gray-400">
+                              User #
+                              {order.user_id}
+                            </p>
+
+                          </td>
+
+                          {/* CUSTOMER */}
+
+                          <td className="px-6 py-5">
+
+                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
+                              Customer #
+                              {
+                                order.user_id
+                              }
+                            </span>
+
+                          </td>
+
+                          {/* ITEMS */}
+
+                          <td className="px-6 py-5">
+
+                            <span className="font-semibold text-gray-700">
+                              {
+                                itemCount
+                              }
+                            </span>
+
+                            <span className="ml-1 text-xs text-gray-400">
+                              {itemCount ===
+                              1
+                                ? "item"
+                                : "items"}
+                            </span>
+
+                          </td>
+
+                          {/* TOTAL */}
+
+                          <td className="px-6 py-5">
+
+                            <span className="font-bold text-[#32145f]">
+                              ₹
+                              {Number(
+                                order.total ||
+                                  0,
+                              ).toFixed(
+                                2,
+                              )}
+                            </span>
+
+                          </td>
+
+                          {/* STATUS */}
+
+                          <td className="px-6 py-5">
+
+                            <OrderStatus
+                              status={
+                                status
+                              }
+                            />
+
+                          </td>
+
+                          {/* DATE */}
+
+                          <td className="px-6 py-5">
+
+                            <p className="text-sm text-gray-500">
+                              {formatDate(
+                                order.created_at,
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-xs text-gray-400">
+                              {formatTime(
+                                order.created_at,
+                              )}
+                            </p>
+
+                          </td>
+
+                          {/* ACTIONS */}
+
+                          <td className="px-6 py-5">
+
+                            {actions.length ===
+                            0 ? (
+
+                              <span className="text-xs font-medium text-gray-400">
+                                No actions
+                              </span>
+
+                            ) : (
+
+                              <div className="flex justify-end gap-2">
+
+                                {actions.includes(
+                                  "confirmed",
+                                ) && (
+                                  <ActionButton
+                                    label="Confirm"
+                                    icon={
+                                      <Check
+                                        size={
+                                          14
+                                        }
+                                      />
+                                    }
+                                    onClick={() =>
+                                      openStatusConfirmation(
+                                        order.id,
+                                        "confirmed",
+                                      )
+                                    }
+                                    disabled={
+                                      isUpdating
+                                    }
+                                    className="bg-[#32145f] text-white hover:bg-[#421b7a]"
+                                  />
+                                )}
+
+                                {actions.includes(
+                                  "cancelled",
+                                ) && (
+                                  <ActionButton
+                                    label="Cancel"
+                                    icon={
+                                      <XCircle
+                                        size={
+                                          14
+                                        }
+                                      />
+                                    }
+                                    onClick={() =>
+                                      openStatusConfirmation(
+                                        order.id,
+                                        "cancelled",
+                                      )
+                                    }
+                                    disabled={
+                                      isUpdating
+                                    }
+                                    className="border border-red-100 bg-red-50 text-red-600 hover:bg-red-100"
+                                  />
+                                )}
+
+                                {actions.includes(
+                                  "completed",
+                                ) && (
+                                  <ActionButton
+                                    label="Complete"
+                                    icon={
+                                      <CheckCircle2
+                                        size={
+                                          14
+                                        }
+                                      />
+                                    }
+                                    onClick={() =>
+                                      openStatusConfirmation(
+                                        order.id,
+                                        "completed",
+                                      )
+                                    }
+                                    disabled={
+                                      isUpdating
+                                    }
+                                    className="bg-green-600 text-white hover:bg-green-700"
+                                  />
+                                )}
+
+                              </div>
+
+                            )}
+
+                          </td>
+
+                        </tr>
+                      );
+                    },
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          )}
+
+        </section>
+
+        {/* ====================================================
+            BACK
+        ==================================================== */}
+
+        <div className="mt-8 flex flex-wrap gap-3">
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/staff")
+            }
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
+          >
+            <ArrowLeft
+              size={17}
+            />
+            Staff Dashboard
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                "/staff/inventory",
+              )
+            }
+            className="rounded-xl border border-purple-100 bg-purple-50 px-5 py-3 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
+          >
+            Manage Inventory
+          </button>
+
+        </div>
+
+      </main>
+
+      {/* ======================================================
+          CONFIRMATION MODAL
+      ====================================================== */}
+
+      {confirmingOrderId !==
+        null &&
+        pendingStatus && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl">
+
+              <div className="border-b border-gray-100 p-6">
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <div>
+
+                    <p className="text-sm font-medium text-[#32145f]">
+                      Order Action
+                    </p>
+
+                    <h2 className="mt-1 text-xl font-bold text-[#24113f]">
+                      Update Order #
+                      {
+                        confirmingOrderId
+                      }
+                    </h2>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={
+                      closeStatusConfirmation
+                    }
+                    disabled={
+                      updatingOrderId !==
+                      null
+                    }
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <X size={17} />
+                  </button>
+
+                </div>
+
+              </div>
+
+              <div className="p-6">
+
+                <p className="text-sm leading-6 text-gray-500">
+                  Are you sure you want to change this order to:
+                </p>
+
+                <div
+                  className={`mt-4 rounded-2xl border p-4 ${
+                    pendingStatus ===
+                    "cancelled"
+                      ? "border-red-100 bg-red-50"
+                      : pendingStatus ===
+                        "completed"
+                        ? "border-green-100 bg-green-50"
+                        : "border-purple-100 bg-purple-50"
+                  }`}
+                >
+
+                  <p
+                    className={`text-lg font-bold capitalize ${
+                      pendingStatus ===
+                      "cancelled"
+                        ? "text-red-600"
+                        : pendingStatus ===
+                          "completed"
+                          ? "text-green-700"
+                          : "text-[#32145f]"
+                    }`}
+                  >
+                    {pendingStatus}
+                  </p>
+
+                </div>
+
+                {pendingStatus ===
+                  "cancelled" && (
+                  <p className="mt-4 text-xs text-red-500">
+                    Cancellation is only available for pending orders.
+                  </p>
+                )}
+
+                <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+                  <button
+                    type="button"
+                    onClick={
+                      closeStatusConfirmation
+                    }
+                    disabled={
+                      updatingOrderId !==
+                      null
+                    }
+                    className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleStatusUpdate
+                    }
+                    disabled={
+                      updatingOrderId !==
+                      null
+                    }
+                    className={`flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
+                      pendingStatus ===
+                      "cancelled"
+                        ? "bg-red-600 hover:bg-red-700"
+                        : pendingStatus ===
+                          "completed"
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "bg-[#32145f] hover:bg-[#421b7a]"
+                    }`}
+                  >
+
+                    {updatingOrderId !==
+                    null ? (
+                      <>
+                        <Loader2
+                          size={
+                            17
+                          }
+                          className="animate-spin"
+                        />
+
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Check
+                          size={
+                            17
+                          }
+                        />
+
+                        Confirm
+                      </>
+                    )}
+
+                  </button>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+    </div>
+  );
+}
+
+/* ============================================================
+   ORDER STAT
+============================================================ */
+
+function OrderStat({
+  label,
+  value,
+  icon,
+  className = "",
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+
+      <div
+        className={`flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-[#32145f] ${className}`}
+      >
+        {icon}
+      </div>
+
+      <p className="mt-4 text-sm text-gray-400">
+        {label}
+      </p>
+
+      <p className="mt-1 text-2xl font-bold text-[#24113f]">
+        {value}
+      </p>
+
+    </div>
+  );
+}
+
+/* ============================================================
+   FILTER BUTTON
+============================================================ */
+
+function FilterButton({
+  children,
+  active,
+  onClick,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+        active
+          ? "bg-[#32145f] text-white"
+          : "border border-gray-200 bg-white text-gray-500 hover:border-purple-100 hover:text-[#32145f]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ============================================================
+   ACTION BUTTON
+============================================================ */
+
+function ActionButton({
+  label,
+  icon,
+  onClick,
+  disabled,
+  className,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  className: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+/* ============================================================
+   ORDER STATUS
+============================================================ */
+
+function OrderStatus({
+  status,
+}: {
+  status:
+    | OrderStatus
+    | "unknown";
+}) {
+  const styles: Record<
+    string,
+    string
+  > = {
+    pending:
+      "bg-yellow-50 text-yellow-700 border-yellow-100",
+
+    confirmed:
+      "bg-purple-50 text-[#32145f] border-purple-100",
+
+    completed:
+      "bg-green-50 text-green-700 border-green-100",
+
+    cancelled:
+      "bg-red-50 text-red-600 border-red-100",
+
+    unknown:
+      "bg-gray-50 text-gray-500 border-gray-100",
+  };
+
+  const labels: Record<
+    string,
+    string
+  > = {
+    pending: "Pending",
+    confirmed: "Confirmed",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    unknown: "Unknown",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${
+        styles[status]
+      }`}
+    >
+      {labels[status]}
+    </span>
+  );
+}

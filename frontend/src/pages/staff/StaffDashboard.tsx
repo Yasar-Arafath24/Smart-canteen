@@ -1,28 +1,27 @@
 import {
   AlertCircle,
   ArrowRight,
-  BarChart3,
   CheckCircle2,
   Clock3,
   ClipboardList,
-  Edit3,
-  FolderTree,
   Loader2,
   Package,
   RefreshCw,
   ShoppingBag,
-  Store,
-  Users,
   XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
 import {
   getAllOrders,
-  getAllUsers,
   type AdminOrder,
-  type AdminUser,
 } from "../../api/admin";
 
 import { api } from "../../api/client";
@@ -31,34 +30,18 @@ import { api } from "../../api/client";
    TYPES
 ============================================================ */
 
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  category_id: number;
-  is_available: boolean;
-  stock: number;
-  created_at: string;
+interface InventoryItem {
+  menu_item_id: number;
+  menu_item_name: string;
+  quantity: number;
+  unit: string;
 }
 
 /* ============================================================
-   MENU API
+   STAFF DASHBOARD
 ============================================================ */
 
-async function getMenuItems(): Promise<MenuItem[]> {
-  const response =
-    await api.get<MenuItem[]>("/menu/");
-
-  return response.data;
-}
-
-/* ============================================================
-   ADMIN DASHBOARD
-============================================================ */
-
-export default function AdminDashboard() {
+export default function StaffDashboard() {
   const navigate = useNavigate();
 
   /* ==========================================================
@@ -68,11 +51,8 @@ export default function AdminDashboard() {
   const [orders, setOrders] =
     useState<AdminOrder[]>([]);
 
-  const [users, setUsers] =
-    useState<AdminUser[]>([]);
-
-  const [menuItems, setMenuItems] =
-    useState<MenuItem[]>([]);
+  const [inventory, setInventory] =
+    useState<InventoryItem[]>([]);
 
   /* ==========================================================
      LOADING
@@ -85,7 +65,7 @@ export default function AdminDashboard() {
     useState(false);
 
   /* ==========================================================
-     ALERTS
+     ERROR
   ========================================================== */
 
   const [error, setError] =
@@ -96,10 +76,10 @@ export default function AdminDashboard() {
   ========================================================== */
 
   async function loadDashboard(
-    showLoading = true,
+    showInitialLoading = true,
   ) {
     try {
-      if (showLoading) {
+      if (showInitialLoading) {
         setLoading(true);
       } else {
         setRefreshing(true);
@@ -109,27 +89,37 @@ export default function AdminDashboard() {
 
       const [
         ordersData,
-        usersData,
-        menuData,
+        inventoryResponse,
       ] = await Promise.all([
         getAllOrders(),
-        getAllUsers(),
-        getMenuItems(),
+        api.get<InventoryItem[]>(
+          "/inventory/",
+        ),
       ]);
 
-      setOrders(ordersData);
-      setUsers(usersData);
-      setMenuItems(menuData);
+      setOrders(
+        Array.isArray(ordersData)
+          ? ordersData
+          : [],
+      );
+
+      setInventory(
+        Array.isArray(
+          inventoryResponse.data,
+        )
+          ? inventoryResponse.data
+          : [],
+      );
     } catch (err: any) {
       console.error(
-        "Admin dashboard error:",
+        "Staff dashboard load error:",
         err,
       );
 
       setError(
         err?.response?.data?.detail ||
           err?.response?.data?.message ||
-          "Unable to load admin dashboard.",
+          "Unable to load staff dashboard.",
       );
     } finally {
       setLoading(false);
@@ -146,14 +136,6 @@ export default function AdminDashboard() {
   }, []);
 
   /* ==========================================================
-     REFRESH
-  ========================================================== */
-
-  async function handleRefresh() {
-    await loadDashboard(false);
-  }
-
-  /* ==========================================================
      STATISTICS
   ========================================================== */
 
@@ -161,28 +143,32 @@ export default function AdminDashboard() {
     const pending =
       orders.filter(
         (order) =>
-          order.status?.toLowerCase() ===
+          order.status
+            ?.toLowerCase() ===
           "pending",
       ).length;
 
     const confirmed =
       orders.filter(
         (order) =>
-          order.status?.toLowerCase() ===
+          order.status
+            ?.toLowerCase() ===
           "confirmed",
       ).length;
 
     const completed =
       orders.filter(
         (order) =>
-          order.status?.toLowerCase() ===
+          order.status
+            ?.toLowerCase() ===
           "completed",
       ).length;
 
     const cancelled =
       orders.filter(
         (order) =>
-          order.status?.toLowerCase() ===
+          order.status
+            ?.toLowerCase() ===
           "cancelled",
       ).length;
 
@@ -190,68 +176,44 @@ export default function AdminDashboard() {
       orders
         .filter(
           (order) =>
-            order.status?.toLowerCase() !==
+            order.status
+              ?.toLowerCase() !==
             "cancelled",
         )
         .reduce(
           (total, order) =>
             total +
-            Number(order.total || 0),
+            Number(
+              order.total || 0,
+            ),
           0,
         );
 
-    const availableMenuItems =
-      menuItems.filter(
-        (item) => item.is_available,
-      ).length;
-
-    const unavailableMenuItems =
-      menuItems.filter(
-        (item) => !item.is_available,
-      ).length;
-
-    const lowStockItems =
-      menuItems.filter(
+    const lowStock =
+      inventory.filter(
         (item) =>
-          item.stock > 0 &&
-          item.stock <= 5,
+          item.quantity > 0 &&
+          item.quantity <= 5,
       ).length;
 
-    const outOfStockItems =
-      menuItems.filter(
-        (item) => item.stock === 0,
+    const outOfStock =
+      inventory.filter(
+        (item) =>
+          item.quantity <= 0,
       ).length;
 
     return {
       totalOrders:
         orders.length,
-
-      totalUsers:
-        users.length,
-
       pending,
       confirmed,
       completed,
       cancelled,
-
       revenue,
-
-      totalMenuItems:
-        menuItems.length,
-
-      availableMenuItems,
-
-      unavailableMenuItems,
-
-      lowStockItems,
-
-      outOfStockItems,
+      lowStock,
+      outOfStock,
     };
-  }, [
-    orders,
-    users,
-    menuItems,
-  ]);
+  }, [orders, inventory]);
 
   /* ==========================================================
      RECENT ORDERS
@@ -268,24 +230,26 @@ export default function AdminDashboard() {
             a.created_at,
           ).getTime(),
       )
-      .slice(0, 10);
+      .slice(0, 8);
   }, [orders]);
 
   /* ==========================================================
-     LOW STOCK
+     STOCK ALERTS
   ========================================================== */
 
-  const lowStockItems = useMemo(() => {
-    return menuItems
+  const stockAlerts = useMemo(() => {
+    return [...inventory]
       .filter(
-        (item) => item.stock <= 5,
+        (item) =>
+          item.quantity <= 5,
       )
       .sort(
         (a, b) =>
-          a.stock - b.stock,
+          a.quantity -
+          b.quantity,
       )
-      .slice(0, 8);
-  }, [menuItems]);
+      .slice(0, 6);
+  }, [inventory]);
 
   /* ==========================================================
      LOADING
@@ -294,14 +258,18 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafa]">
+
         <div className="flex items-center gap-3 text-sm text-gray-400">
+
           <Loader2
             size={20}
             className="animate-spin"
           />
 
-          Loading admin dashboard...
+          Loading staff dashboard...
+
         </div>
+
       </div>
     );
   }
@@ -319,31 +287,31 @@ export default function AdminDashboard() {
 
       <header className="border-b border-[#24113f] bg-[#32145f]">
 
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-5">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
 
             <p className="text-sm font-medium text-purple-200">
-              Administration
+              Staff Portal
             </p>
 
             <h1 className="mt-1 text-2xl font-bold text-white">
-              Admin Dashboard
+              Staff Dashboard
             </h1>
 
             <p className="mt-1 text-sm text-purple-200">
-              Manage your SmartCanteen system.
+              Manage orders and monitor canteen operations.
             </p>
 
           </div>
 
           <button
             type="button"
-            onClick={
-              handleRefresh
+            onClick={() =>
+              loadDashboard(false)
             }
             disabled={refreshing}
-            className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 self-start rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
           >
 
             <RefreshCw
@@ -405,7 +373,7 @@ export default function AdminDashboard() {
         )}
 
         {/* ====================================================
-            QUICK ADMIN ACTIONS
+            QUICK ACTIONS
         ==================================================== */}
 
         <section className="mb-10">
@@ -413,114 +381,58 @@ export default function AdminDashboard() {
           <div className="mb-5">
 
             <p className="text-sm text-gray-400">
-              Administration
+              Staff Operations
             </p>
 
             <h2 className="text-xl font-bold text-[#24113f]">
-              Management
+              Quick Actions
             </h2>
 
             <p className="mt-1 text-sm text-gray-400">
-              Manage orders, inventory, menu items,
-              categories, customers, and analytics.
+              Work with customer orders and inventory.
             </p>
 
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 
-            {/* ORDERS */}
-
-            <ManagementCard
+            <ActionCard
               icon={
                 <ClipboardList
                   size={22}
                 />
               }
-              title="Orders"
-              description="Review and update customer orders."
+              title="Manage Orders"
+              description="Review orders and update valid order statuses."
               onClick={() =>
                 navigate(
-                  "/admin/orders",
+                  "/staff/orders",
                 )
               }
             />
 
-            {/* INVENTORY */}
-
-            <ManagementCard
+            <ActionCard
               icon={
                 <Package size={22} />
               }
               title="Inventory"
-              description="Manage stock and low-stock items."
+              description="Monitor current stock and handle restocking."
               onClick={() =>
                 navigate(
-                  "/admin/inventory",
+                  "/staff/inventory",
                 )
               }
             />
 
-            {/* MENU */}
-
-            <ManagementCard
+            <ActionCard
               icon={
-                <Store size={22} />
+                <BellIcon />
               }
-              title="Menu"
-              description="Add, edit, and manage food items."
+              title="Notifications"
+              description="View order and system notifications."
               onClick={() =>
                 navigate(
-                  "/admin/menu",
-                )
-              }
-            />
-
-            {/* CATEGORIES */}
-
-            <ManagementCard
-              icon={
-                <FolderTree
-                  size={22}
-                />
-              }
-              title="Categories"
-              description="Create and organize menu categories."
-              onClick={() =>
-                navigate(
-                  "/admin/categories",
-                )
-              }
-            />
-
-            {/* CUSTOMERS */}
-
-            <ManagementCard
-              icon={
-                <Users size={22} />
-              }
-              title="Customers"
-              description="Manage registered users."
-              onClick={() =>
-                navigate(
-                  "/admin/users",
-                )
-              }
-            />
-
-            {/* ANALYTICS */}
-
-            <ManagementCard
-              icon={
-                <BarChart3
-                  size={22}
-                />
-              }
-              title="Analytics"
-              description="View sales and order analytics."
-              onClick={() =>
-                navigate(
-                  "/admin/analytics",
+                  "/notifications",
                 )
               }
             />
@@ -530,7 +442,7 @@ export default function AdminDashboard() {
         </section>
 
         {/* ====================================================
-            MAIN STATISTICS
+            MAIN STATS
         ==================================================== */}
 
         <section>
@@ -538,11 +450,11 @@ export default function AdminDashboard() {
           <div className="mb-5">
 
             <p className="text-sm text-gray-400">
-              Overview
+              Operations
             </p>
 
             <h2 className="text-xl font-bold text-[#24113f]">
-              Canteen Statistics
+              Overview
             </h2>
 
           </div>
@@ -563,21 +475,25 @@ export default function AdminDashboard() {
 
             <StatCard
               icon={
-                <Users size={21} />
+                <Clock3
+                  size={21}
+                />
               }
-              label="Customers"
+              label="Pending Orders"
               value={
-                statistics.totalUsers
+                statistics.pending
               }
             />
 
             <StatCard
               icon={
-                <Clock3 size={21} />
+                <CheckCircle2
+                  size={21}
+                />
               }
-              label="Pending Orders"
+              label="Completed"
               value={
-                statistics.pending
+                statistics.completed
               }
             />
 
@@ -598,124 +514,6 @@ export default function AdminDashboard() {
         </section>
 
         {/* ====================================================
-            MENU OVERVIEW
-        ==================================================== */}
-
-        <section className="mt-10">
-
-          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-
-            <div>
-
-              <p className="text-sm text-gray-400">
-                Menu & Inventory
-              </p>
-
-              <h2 className="text-xl font-bold text-[#24113f]">
-                Menu Overview
-              </h2>
-
-              <p className="mt-1 text-sm text-gray-400">
-                Current menu availability and stock.
-              </p>
-
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    "/admin/categories",
-                  )
-                }
-                className="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
-              >
-                <FolderTree
-                  size={16}
-                />
-
-                Categories
-
-                <ArrowRight
-                  size={16}
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    "/admin/menu",
-                  )
-                }
-                className="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
-              >
-                Manage Menu
-
-                <ArrowRight
-                  size={16}
-                />
-              </button>
-
-            </div>
-
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-
-            <StatCard
-              icon={
-                <Store size={21} />
-              }
-              label="Total Menu Items"
-              value={
-                statistics.totalMenuItems
-              }
-            />
-
-            <StatCard
-              icon={
-                <CheckCircle2
-                  size={21}
-                />
-              }
-              label="Available Items"
-              value={
-                statistics.availableMenuItems
-              }
-            />
-
-            <StatCard
-              icon={
-                <Clock3
-                  size={21}
-                />
-              }
-              label="Low Stock"
-              value={
-                statistics.lowStockItems
-              }
-            />
-
-            <StatCard
-              icon={
-                <XCircle
-                  size={21}
-                />
-              }
-              label="Out of Stock"
-              value={
-                statistics.outOfStockItems
-              }
-            />
-
-          </div>
-
-        </section>
-
-        {/* ====================================================
             ORDER STATUS
         ==================================================== */}
 
@@ -724,11 +522,11 @@ export default function AdminDashboard() {
           <div className="mb-5">
 
             <p className="text-sm text-gray-400">
-              Order Status
+              Orders
             </p>
 
             <h2 className="text-xl font-bold text-[#24113f]">
-              Current Orders
+              Order Status
             </h2>
 
           </div>
@@ -741,7 +539,9 @@ export default function AdminDashboard() {
                 statistics.pending
               }
               icon={
-                <Clock3 size={20} />
+                <Clock3
+                  size={20}
+                />
               }
               className="bg-yellow-50 text-yellow-700"
             />
@@ -778,7 +578,9 @@ export default function AdminDashboard() {
                 statistics.cancelled
               }
               icon={
-                <XCircle size={20} />
+                <XCircle
+                  size={20}
+                />
               }
               className="bg-red-50 text-red-600"
             />
@@ -788,7 +590,7 @@ export default function AdminDashboard() {
         </section>
 
         {/* ====================================================
-            LOW STOCK
+            STOCK ALERTS
         ==================================================== */}
 
         <section className="mt-10 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
@@ -798,42 +600,36 @@ export default function AdminDashboard() {
             <div>
 
               <h2 className="font-bold text-[#24113f]">
-                Low Stock Items
+                Stock Alerts
               </h2>
 
               <p className="mt-1 text-sm text-gray-400">
-                Items that may need restocking.
+                Items that need staff attention.
               </p>
 
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  "/admin/inventory",
-                )
-              }
-              className="flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
-            >
+            <div className="flex gap-2">
 
-              Manage Stock
+              <span className="rounded-full bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700">
+                {statistics.lowStock} low
+              </span>
 
-              <ArrowRight
-                size={16}
-              />
+              <span className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600">
+                {statistics.outOfStock} out
+              </span>
 
-            </button>
+            </div>
 
           </div>
 
-          {lowStockItems.length ===
+          {stockAlerts.length ===
           0 ? (
 
             <div className="p-10 text-center">
 
               <CheckCircle2
-                size={40}
+                size={38}
                 className="mx-auto text-green-500"
               />
 
@@ -842,7 +638,7 @@ export default function AdminDashboard() {
               </p>
 
               <p className="mt-1 text-sm text-gray-400">
-                No items currently have low stock.
+                No current low-stock items need attention.
               </p>
 
             </div>
@@ -851,85 +647,74 @@ export default function AdminDashboard() {
 
             <div className="divide-y divide-gray-100">
 
-              {lowStockItems.map(
+              {stockAlerts.map(
                 (item) => (
 
                   <div
-                    key={item.id}
-                    className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
+                    key={
+                      item.menu_item_id
+                    }
+                    className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
                   >
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
 
-                      {item.image_url ? (
-                        <img
-                          src={
-                            item.image_url
-                          }
-                          alt={
-                            item.name
-                          }
-                          className="h-12 w-12 rounded-xl object-cover"
-                          onError={(
-                            event,
-                          ) => {
-                            event.currentTarget.style.display =
-                              "none";
-                          }}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
+                        <Package
+                          size={19}
                         />
-                      ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
-                          <Store
-                            size={20}
-                          />
-                        </div>
-                      )}
+                      </div>
 
                       <div>
 
                         <p className="font-semibold text-[#24113f]">
-                          {item.name}
+                          {
+                            item.menu_item_name
+                          }
                         </p>
 
                         <p className="mt-1 text-xs text-gray-400">
-                          Category #
                           {
-                            item.category_id
-                          }
+                            item.quantity
+                          }{" "}
+                          {
+                            item.unit
+                          }{" "}
+                          remaining
                         </p>
 
                       </div>
 
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
 
                       <span
                         className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                          item.stock ===
+                          item.quantity <=
                           0
                             ? "bg-red-50 text-red-600"
                             : "bg-yellow-50 text-yellow-700"
                         }`}
                       >
-                        {item.stock ===
+                        {item.quantity <=
                         0
                           ? "Out of stock"
-                          : `${item.stock} left`}
+                          : "Low stock"}
                       </span>
 
                       <button
                         type="button"
                         onClick={() =>
                           navigate(
-                            "/admin/inventory",
+                            "/staff/inventory",
                           )
                         }
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-purple-100 hover:bg-purple-50 hover:text-[#32145f]"
-                        title="Manage inventory"
+                        className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:border-purple-100 hover:bg-purple-50 hover:text-[#32145f]"
                       >
-                        <Edit3
-                          size={16}
+                        Restock
+                        <ArrowRight
+                          size={14}
                         />
                       </button>
 
@@ -961,7 +746,7 @@ export default function AdminDashboard() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-400">
-                Latest orders from all customers
+                Latest customer orders.
               </p>
 
             </div>
@@ -970,18 +755,15 @@ export default function AdminDashboard() {
               type="button"
               onClick={() =>
                 navigate(
-                  "/admin/orders",
+                  "/staff/orders",
                 )
               }
-              className="flex items-center justify-center gap-2 self-start rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
+              className="flex items-center gap-2 self-start rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
             >
-
               View All Orders
-
               <ArrowRight
                 size={16}
               />
-
             </button>
 
           </div>
@@ -989,15 +771,15 @@ export default function AdminDashboard() {
           {recentOrders.length ===
           0 ? (
 
-            <div className="p-12 text-center">
+            <div className="p-10 text-center">
 
               <Package
-                size={42}
+                size={40}
                 className="mx-auto text-gray-300"
               />
 
-              <p className="mt-4 text-sm text-gray-400">
-                No orders found.
+              <p className="mt-4 font-semibold text-[#24113f]">
+                No orders found
               </p>
 
             </div>
@@ -1006,7 +788,7 @@ export default function AdminDashboard() {
 
             <div className="overflow-x-auto">
 
-              <table className="w-full min-w-[850px]">
+              <table className="w-full min-w-[750px]">
 
                 <thead>
 
@@ -1014,10 +796,6 @@ export default function AdminDashboard() {
 
                     <th className="px-6 py-4">
                       Order
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Customer
                     </th>
 
                     <th className="px-6 py-4">
@@ -1045,13 +823,6 @@ export default function AdminDashboard() {
                   {recentOrders.map(
                     (order) => {
 
-                      const customer =
-                        users.find(
-                          (user) =>
-                            user.id ===
-                            order.user_id,
-                        );
-
                       const itemCount =
                         order.items?.reduce(
                           (
@@ -1070,26 +841,18 @@ export default function AdminDashboard() {
                         >
 
                           <td className="px-6 py-5">
-                            <span className="font-semibold text-[#24113f]">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate(
+                                  "/staff/orders",
+                                )
+                              }
+                              className="font-semibold text-[#32145f] hover:underline"
+                            >
                               #{order.id}
-                            </span>
-                          </td>
-
-                          <td className="px-6 py-5">
-
-                            <div>
-
-                              <p className="font-medium text-[#24113f]">
-                                {customer?.name ||
-                                  `User #${order.user_id}`}
-                              </p>
-
-                              <p className="mt-1 text-xs text-gray-400">
-                                {customer?.email ||
-                                  "—"}
-                              </p>
-
-                            </div>
+                            </button>
 
                           </td>
 
@@ -1138,194 +901,6 @@ export default function AdminDashboard() {
 
         </section>
 
-        {/* ====================================================
-            CUSTOMERS
-        ==================================================== */}
-
-        <section className="mt-10 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-
-          <div className="border-b border-gray-100 p-6">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <h2 className="font-bold text-[#24113f]">
-                  Customers
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-400">
-                  Registered users
-                </p>
-
-              </div>
-
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
-                <Users size={19} />
-              </div>
-
-            </div>
-
-          </div>
-
-          {users.length === 0 ? (
-
-            <div className="p-10 text-center text-sm text-gray-400">
-              No users found.
-            </div>
-
-          ) : (
-
-            <div className="divide-y divide-gray-100">
-
-              {users
-                .slice(0, 10)
-                .map((user) => (
-
-                  <div
-                    key={user.id}
-                    className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
-                  >
-
-                    <div>
-
-                      <p className="font-semibold text-[#24113f]">
-                        {user.name}
-                      </p>
-
-                      <p className="mt-1 text-sm text-gray-400">
-                        {user.email}
-                      </p>
-
-                    </div>
-
-                    <div className="flex items-center gap-3">
-
-                      <span className="rounded-full border border-purple-100 bg-purple-50 px-3 py-1 text-xs font-semibold capitalize text-[#32145f]">
-                        {user.role}
-                      </span>
-
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          user.is_active
-                            ? "bg-green-50 text-green-700"
-                            : "bg-red-50 text-red-600"
-                        }`}
-                      >
-                        {user.is_active
-                          ? "Active"
-                          : "Inactive"}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-            </div>
-
-          )}
-
-          {users.length > 10 && (
-            <div className="border-t border-gray-100 p-5 text-center">
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    "/admin/users",
-                  )
-                }
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[#32145f] hover:underline"
-              >
-                View All Customers
-
-                <ArrowRight
-                  size={16}
-                />
-
-              </button>
-
-            </div>
-          )}
-
-        </section>
-
-        {/* ====================================================
-            QUICK MANAGEMENT
-        ==================================================== */}
-
-        <section className="mt-10 grid gap-5 md:grid-cols-3">
-
-          <QuickLink
-            icon={
-              <FolderTree
-                size={22}
-              />
-            }
-            title="Category Management"
-            description="Create and organize menu categories."
-            buttonText="Manage Categories"
-            onClick={() =>
-              navigate(
-                "/admin/categories",
-              )
-            }
-          />
-
-          <QuickLink
-            icon={
-              <Store size={22} />
-            }
-            title="Menu Management"
-            description="Add, edit, delete, and manage menu items."
-            buttonText="Manage Menu"
-            onClick={() =>
-              navigate(
-                "/admin/menu",
-              )
-            }
-          />
-
-          <QuickLink
-            icon={
-              <BarChart3
-                size={22}
-              />
-            }
-            title="Analytics"
-            description="View detailed sales and performance graphs."
-            buttonText="Open Analytics"
-            onClick={() =>
-              navigate(
-                "/admin/analytics",
-              )
-            }
-          />
-
-        </section>
-
-        {/* ====================================================
-            BACK TO CUSTOMER DASHBOARD
-        ==================================================== */}
-
-        <div className="mt-10">
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                "/dashboard",
-              )
-            }
-            className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
-          >
-            Back to Customer Dashboard
-          </button>
-
-        </div>
-
       </main>
 
     </div>
@@ -1333,10 +908,38 @@ export default function AdminDashboard() {
 }
 
 /* ============================================================
-   MANAGEMENT CARD
+   BELL ICON
 ============================================================ */
 
-function ManagementCard({
+function BellIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="h-[22px] w-[22px]"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 17H9m9-2V11a6 6 0 10-12 0v4l-2 2h16l-2-2z"
+      />
+
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M10 20h4"
+      />
+    </svg>
+  );
+}
+
+/* ============================================================
+   ACTION CARD
+============================================================ */
+
+function ActionCard({
   icon,
   title,
   description,
@@ -1351,7 +954,7 @@ function ManagementCard({
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-purple-100 hover:shadow-md"
+      className="group rounded-2xl border border-gray-100 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-purple-100 hover:shadow-md"
     >
 
       <div className="flex items-start justify-between">
@@ -1371,59 +974,11 @@ function ManagementCard({
         {title}
       </h3>
 
-      <p className="mt-2 text-xs leading-5 text-gray-400">
+      <p className="mt-2 text-sm leading-5 text-gray-400">
         {description}
       </p>
 
     </button>
-  );
-}
-
-/* ============================================================
-   QUICK LINK
-============================================================ */
-
-function QuickLink({
-  icon,
-  title,
-  description,
-  buttonText,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  buttonText: string;
-  onClick: () => void;
-}) {
-  return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
-        {icon}
-      </div>
-
-      <h3 className="mt-5 font-bold text-[#24113f]">
-        {title}
-      </h3>
-
-      <p className="mt-2 min-h-[40px] text-sm text-gray-400">
-        {description}
-      </p>
-
-      <button
-        type="button"
-        onClick={onClick}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#32145f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
-      >
-        {buttonText}
-
-        <ArrowRight
-          size={16}
-        />
-      </button>
-
-    </div>
   );
 }
 
