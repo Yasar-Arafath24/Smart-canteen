@@ -124,6 +124,11 @@ const STAFF_LINKS: NavItem[] = [
     to: "/staff/notifications",
     icon: <Bell size={18} />,
   },
+  {
+    label: "Profile",
+    to: "/staff/profile",
+    icon: <User size={18} />,
+  },
 ];
 
 function Navbar({ role }: { role: "customer" | "admin" | "staff" }) {

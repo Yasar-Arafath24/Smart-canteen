@@ -25,6 +25,7 @@ import StaffDashboard from "./pages/staff/StaffDashboard";
 import StaffInventory from "./pages/staff/StaffInventory";
 import StaffNotifications from "./pages/staff/StaffNotifications";
 import StaffAttendance from "./pages/staff/StaffAttendance";
+import StaffProfile from "./pages/staff/StaffProfile";
 function CustomerLayout() {
   return (
     <>
@@ -210,6 +211,11 @@ function App() {
           <Route
             path="/staff/attendance"
             element={<StaffAttendance />}
+          />
+
+          <Route
+            path="/staff/profile"
+            element={<StaffProfile />}
           />
 
         </Route>
