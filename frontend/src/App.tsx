@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-
+import AdminMenu from "./pages/admin/AdminMenu";
 import Login from "./pages/auth/Login";
 import AdminOrders from "./pages/admin/AdminOrders";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
@@ -11,9 +11,9 @@ import OrderDetails from "./pages/customer/OrderDetails";
 import Payment from "./pages/customer/Payment";
 import Notifications from "./pages/customer/Notifications";
 import Profile from "./pages/customer/Profile";
-
+import AdminUsers from "./pages/admin/AdminUsers";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-
+import AdminInventory from "./pages/admin/AdminInventory";
 import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
 
@@ -138,6 +138,18 @@ function App() {
 <Route
   path="/admin/orders"
   element={<AdminOrders />}
+/>
+<Route
+  path="/admin/users"
+  element={<AdminUsers />}
+/>
+<Route
+  path="/admin/inventory"
+  element={<AdminInventory />}
+/>
+<Route
+  path="/admin/menu"
+  element={<AdminMenu />}
 />
 
 
