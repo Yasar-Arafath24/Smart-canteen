@@ -138,11 +138,11 @@ export default function Orders() {
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-5xl items-center px-6 py-5">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-[#32145f]"
+            className="flex items-center gap-2 text-sm font-medium text-purple-200 transition hover:text-white"
           >
             <ArrowLeft size={18} />
 
@@ -348,8 +348,10 @@ export default function Orders() {
                             className="flex justify-between gap-4 text-sm"
                           >
                             <span className="text-gray-600">
-                              Menu item #
-                              {item.menu_item_id}{" "}
+                              {
+                                item.menu_item_name ??
+                                `Menu item #${item.menu_item_id}`
+                              }{" "}
                               × {item.quantity}
                             </span>
 

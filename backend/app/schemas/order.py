@@ -18,6 +18,7 @@ class OrderItemResponse(BaseModel):
 
     id: int
     menu_item_id: int
+    menu_item_name: Optional[str] = None
     quantity: int
     price: float
 

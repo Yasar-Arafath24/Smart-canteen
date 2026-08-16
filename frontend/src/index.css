@@ -110,3 +110,22 @@ button {
   opacity: 0;
   animation: splash-rise 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
+
+/* ---------------------------------------------------------
+   App enter (after splash)
+--------------------------------------------------------- */
+
+@keyframes app-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-enter {
+  animation: app-enter 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+}

@@ -14,6 +14,9 @@ from app.services.email_service import (
 from app.services.notification_service import (
     create_and_send_notification,
 )
+from app.services.admin_ws import (
+    admin_analytics_manager,
+)
 from app.utils.time import utcnow
 
 
@@ -25,7 +28,7 @@ VALID_ORDER_STATUSES = {
 }
 
 
-def create_order(
+async def create_order(
     db: Session,
     user_id: int,
     order: OrderCreate,
@@ -132,6 +135,16 @@ def create_order(
         db.commit()
         db.refresh(db_order)
 
+        await admin_analytics_manager.broadcast(
+            {
+                "type": "ORDER_CREATED",
+                "order_id": db_order.id,
+                "user_id": db_order.user_id,
+                "status": db_order.status,
+                "total": float(db_order.total),
+            }
+        )
+
         return db_order
 
     except HTTPException:
@@ -152,7 +165,9 @@ def get_orders(
         .filter(Order.user_id == user_id)
         .order_by(Order.id.desc())
         .options(
-            selectinload(Order.items),
+            selectinload(Order.items).selectinload(
+                OrderItem.menu_item
+            ),
         )
         .all()
     )
@@ -166,7 +181,9 @@ def get_order(
         db.query(Order)
         .filter(Order.id == order_id)
         .options(
-            selectinload(Order.items),
+            selectinload(Order.items).selectinload(
+                OrderItem.menu_item
+            ),
         )
         .first()
     )
@@ -289,6 +306,16 @@ async def update_order_status(
     db.commit()
     db.refresh(order)
 
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "ORDER_STATUS_CHANGED",
+            "order_id": order.id,
+            "user_id": order.user_id,
+            "status": order.status,
+            "total": float(order.total),
+        }
+    )
+
     # ---------------------------------------------------------
     # COMPLETED EMAIL
     # ---------------------------------------------------------
@@ -403,6 +430,16 @@ async def cancel_order(
 
     db.commit()
     db.refresh(order)
+
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "ORDER_CANCELLED",
+            "order_id": order.id,
+            "user_id": order.user_id,
+            "status": "cancelled",
+            "total": float(order.total),
+        }
+    )
 
     # --------------------------------
     # Send cancellation email

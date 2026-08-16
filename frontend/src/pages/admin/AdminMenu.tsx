@@ -560,19 +560,19 @@ export default function AdminMenu() {
           HEADER
       ====================================================== */}
 
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
-            <p className="text-sm font-medium text-[#32145f]">
+            <p className="text-sm font-medium text-purple-200">
               Administration
             </p>
 
-            <h1 className="mt-1 text-2xl font-bold text-[#24113f]">
+            <h1 className="mt-1 text-2xl font-bold text-white">
               Menu Management
             </h1>
 
-            <p className="mt-1 text-sm text-gray-400">
+            <p className="mt-1 text-sm text-purple-200">
               Add, edit and manage canteen food items.
             </p>
           </div>
@@ -584,7 +584,7 @@ export default function AdminMenu() {
               onClick={() =>
                 navigate("/admin")
               }
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
+              className="rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50"
             >
               Dashboard
             </button>
@@ -593,7 +593,7 @@ export default function AdminMenu() {
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw
                 size={17}
@@ -610,7 +610,7 @@ export default function AdminMenu() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="flex items-center gap-2 rounded-xl bg-[#32145f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
+              className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50"
             >
               <Plus size={18} />
 

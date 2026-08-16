@@ -112,22 +112,22 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-5">
           <button
             onClick={() => navigate("/dashboard")}
-            className="rounded-xl border border-gray-100 p-2.5 text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
+            className="rounded-xl border border-white/25 bg-white/10 p-2.5 text-purple-100 transition hover:bg-white/20 hover:text-white"
             title="Back to dashboard"
           >
             <ArrowLeft size={19} />
           </button>
 
           <div>
-            <p className="text-xs font-medium text-gray-400">
+            <p className="text-xs font-medium text-purple-200">
               Account
             </p>
 
-            <h1 className="text-xl font-bold text-[#24113f]">
+            <h1 className="text-xl font-bold text-white">
               My Profile
             </h1>
           </div>

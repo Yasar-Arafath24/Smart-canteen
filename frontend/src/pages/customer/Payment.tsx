@@ -95,14 +95,14 @@ export default function Payment() {
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-2xl items-center px-6 py-5">
           <button
             onClick={() =>
               navigate(`/orders/${orderId}`)
             }
             disabled={loading}
-            className="flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-[#32145f] disabled:opacity-50"
+            className="flex items-center gap-2 text-sm font-medium text-purple-200 transition hover:text-white disabled:opacity-50"
           >
             <ArrowLeft size={18} />
             Back to order

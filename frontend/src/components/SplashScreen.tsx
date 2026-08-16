@@ -132,8 +132,8 @@ function Spoon() {
 export default function SplashScreen({ fading }: SplashScreenProps) {
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#2B0836] transition-opacity duration-500 ${
-        fading ? "pointer-events-none opacity-0" : "opacity-100"
+      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#2B0836] transition-all duration-600 ease-in-out ${
+        fading ? "pointer-events-none scale-[1.06] opacity-0" : "opacity-100"
       }`}
     >
       {/* Ambient glow */}

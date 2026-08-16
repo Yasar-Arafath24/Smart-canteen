@@ -111,3 +111,7 @@ class OrderItem(Base):
         "MenuItem",
         back_populates="order_items"
     )
+
+    @property
+    def menu_item_name(self) -> Optional[str]:
+        return self.menu_item.name if self.menu_item else None

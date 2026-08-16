@@ -20,6 +20,9 @@ from app.crud.inventory import (
     update_inventory,
     delete_inventory,
 )
+from app.services.admin_ws import (
+    admin_analytics_manager,
+)
 
 
 router = APIRouter(
@@ -94,17 +97,27 @@ def create(
     "/{inventory_id}",
     response_model=InventoryOut,
 )
-def update(
+async def update(
     inventory_id: int,
     inventory_data: InventoryUpdate,
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    return update_inventory(
+    updated_inventory = update_inventory(
         db=db,
         inventory_id=inventory_id,
         inventory_data=inventory_data,
     )
+
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "INVENTORY_UPDATED",
+            "menu_item_id": updated_inventory.menu_item_id,
+            "quantity": updated_inventory.quantity,
+        }
+    )
+
+    return updated_inventory
 
 
 # ============================================================
@@ -116,17 +129,27 @@ def update(
     "/{inventory_id}",
     response_model=InventoryOut,
 )
-def patch(
+async def patch(
     inventory_id: int,
     inventory_data: InventoryUpdate,
     current_admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    return update_inventory(
+    updated_inventory = update_inventory(
         db=db,
         inventory_id=inventory_id,
         inventory_data=inventory_data,
     )
+
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "INVENTORY_UPDATED",
+            "menu_item_id": updated_inventory.menu_item_id,
+            "quantity": updated_inventory.quantity,
+        }
+    )
+
+    return updated_inventory
 
 
 # ============================================================

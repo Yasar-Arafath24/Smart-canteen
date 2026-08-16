@@ -126,24 +126,24 @@ export default function Notifications() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-[#32145f]"
+            className="flex items-center gap-2 text-sm font-medium text-purple-200 transition hover:text-white"
           >
             <ArrowLeft size={18} />
             Back to menu
           </button>
 
-          <h1 className="text-xl font-bold text-[#24113f]">
+          <h1 className="text-xl font-bold text-white">
             Notifications
           </h1>
 
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllRead}
-              className="flex items-center gap-1.5 text-sm font-medium text-[#32145f] transition hover:text-[#421b7a]"
+              className="flex items-center gap-1.5 text-sm font-medium text-purple-100 transition hover:text-white"
             >
               <CheckCheck size={16} />
               Mark all read

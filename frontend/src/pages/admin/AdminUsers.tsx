@@ -261,24 +261,24 @@ export default function AdminUsers() {
           HEADER
       ======================================================== */}
 
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={() => navigate("/admin")}
-              className="rounded-xl border border-gray-100 p-2.5 text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
+              className="rounded-xl border border-white/25 bg-white/10 p-2.5 text-purple-100 transition hover:bg-white/20 hover:text-white"
               title="Back to admin dashboard"
             >
               <ArrowLeft size={19} />
             </button>
 
             <div>
-              <p className="text-xs font-medium text-gray-400">
+              <p className="text-xs font-medium text-purple-200">
                 Administration
               </p>
 
-              <h1 className="text-xl font-bold text-[#24113f]">
+              <h1 className="text-xl font-bold text-white">
                 Customer Management
               </h1>
             </div>
@@ -288,7 +288,7 @@ export default function AdminUsers() {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f] disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:opacity-50"
           >
             <RefreshCw
               size={17}

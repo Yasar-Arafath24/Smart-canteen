@@ -396,7 +396,7 @@ export default function AdminInventory() {
           HEADER
       ====================================================== */}
 
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
 
           <div className="flex items-center gap-4">
@@ -404,22 +404,22 @@ export default function AdminInventory() {
             <button
               type="button"
               onClick={() => navigate("/admin")}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-purple-100 transition hover:bg-white/20 hover:text-white"
               title="Back to Admin Dashboard"
             >
               <ArrowLeft size={19} />
             </button>
 
             <div>
-              <p className="text-sm font-medium text-[#32145f]">
+              <p className="text-sm font-medium text-purple-200">
                 Administration
               </p>
 
-              <h1 className="mt-1 text-2xl font-bold text-[#24113f]">
+              <h1 className="mt-1 text-2xl font-bold text-white">
                 Inventory Management
               </h1>
 
-              <p className="mt-1 text-sm text-gray-400">
+              <p className="mt-1 text-sm text-purple-200">
                 Monitor and restock your canteen inventory.
               </p>
             </div>
@@ -430,7 +430,7 @@ export default function AdminInventory() {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               size={17}

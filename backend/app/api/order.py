@@ -10,7 +10,7 @@ from app.api.deps import (
     get_current_admin,
 )
 from app.models.user import User
-from app.models.order import Order
+from app.models.order import Order, OrderItem
 from app.schemas.order import (
     OrderCreate,
     OrderResponse,
@@ -41,12 +41,12 @@ router = APIRouter(
     response_model=OrderResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create(
+async def create(
     order: OrderCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return create_order(
+    return await create_order(
         db=db,
         user_id=current_user.id,
         order=order,
@@ -87,7 +87,9 @@ def list_all_orders(
         db.query(Order)
         .order_by(Order.id.desc())
         .options(
-            selectinload(Order.items),
+            selectinload(Order.items).selectinload(
+                OrderItem.menu_item
+            ),
         )
         .all()
     )

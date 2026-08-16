@@ -62,21 +62,21 @@ export default function Cart() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
-      <header className="border-b border-gray-100 bg-white">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-[#32145f]"
+            className="flex items-center gap-2 text-sm font-medium text-purple-200 transition hover:text-white"
           >
             <ArrowLeft size={18} />
             Back to menu
           </button>
 
-          <h1 className="text-xl font-bold text-[#24113f]">
+          <h1 className="text-xl font-bold text-white">
             Your Cart
           </h1>
 
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-purple-200">
             {totalItems} {totalItems === 1 ? "item" : "items"}
           </span>
         </div>

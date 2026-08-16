@@ -1,19 +1,41 @@
-import { useEffect, useState } from "react";
 import {
+  AlertCircle,
   ArrowLeft,
-  CheckCircle2,
+  Check,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   Loader2,
+  Package,
   RefreshCw,
+  Search,
+  Trash2,
+  X,
   XCircle,
 } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../../api/client";
 
+/* ============================================================
+   TYPES
+============================================================ */
+
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "completed"
+  | "cancelled";
+
 interface OrderItem {
   id: number;
   menu_item_id: number;
+  menu_item_name: string | null;
   quantity: number;
   price: number;
 }
@@ -21,48 +43,196 @@ interface OrderItem {
 interface Order {
   id: number;
   user_id: number;
-  status: string;
+  status: OrderStatus | string;
   total: number;
   created_at: string;
   updated_at: string | null;
   items: OrderItem[];
 }
 
+const ORDER_STATUSES: OrderStatus[] = [
+  "pending",
+  "confirmed",
+  "completed",
+  "cancelled",
+];
+
 /* ============================================================
-   VALID STATUS TRANSITIONS
+   API
 ============================================================ */
 
-const validTransitions: Record<string, string[]> = {
-  pending: ["confirmed", "cancelled"],
-  confirmed: ["completed", "cancelled"],
-  completed: [],
-  cancelled: [],
-};
+async function getOrders(): Promise<Order[]> {
+  const response = await api.get<Order[]>("/orders/");
+  return response.data;
+}
+
+async function updateOrderStatus(
+  orderId: number,
+  status: OrderStatus,
+): Promise<Order> {
+  const response = await api.patch<Order>(
+    `/orders/${orderId}/status`,
+    {
+      status,
+    },
+  );
+
+  return response.data;
+}
+
+async function deleteOrder(
+  orderId: number,
+): Promise<void> {
+  await api.delete(`/orders/${orderId}`);
+}
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function getErrorMessage(
+  error: any,
+  fallback: string,
+) {
+  return (
+    error?.response?.data?.detail ||
+    error?.response?.data?.message ||
+    fallback
+  );
+}
+
+function formatDate(
+  value: string,
+): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
+}
+
+function formatPrice(
+  value: number,
+): string {
+  return `₹${Number(value).toFixed(2)}`;
+}
+
+/* ============================================================
+   STATUS BADGE
+============================================================ */
+
+function StatusBadge({
+  status,
+}: {
+  status: string;
+}) {
+  switch (status) {
+    case "pending":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-100 bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700">
+          <Clock3 size={14} />
+          Pending
+        </span>
+      );
+
+    case "confirmed":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+          <Check size={14} />
+          Confirmed
+        </span>
+      );
+
+    case "completed":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+          <Check size={14} />
+          Completed
+        </span>
+      );
+
+    case "cancelled":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600">
+          <XCircle size={14} />
+          Cancelled
+        </span>
+      );
+
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
+          {status}
+        </span>
+      );
+  }
+}
+
+/* ============================================================
+   ADMIN ORDERS
+============================================================ */
 
 export default function AdminOrders() {
   const navigate = useNavigate();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
-  const [error, setError] = useState("");
+  const [orders, setOrders] =
+    useState<Order[]>([]);
 
-  /* ============================================================
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  const [search, setSearch] =
+    useState("");
+
+  const [statusFilter, setStatusFilter] =
+    useState<"all" | OrderStatus>("all");
+
+  const [expandedOrderId, setExpandedOrderId] =
+    useState<number | null>(null);
+
+  const [updatingOrderId, setUpdatingOrderId] =
+    useState<number | null>(null);
+
+  const [deletingOrderId, setDeletingOrderId] =
+    useState<number | null>(null);
+
+  /* ==========================================================
      LOAD ORDERS
-  ============================================================ */
+  ========================================================== */
 
-  async function loadOrders() {
+  async function loadOrders(
+    showLoader = true,
+  ) {
     try {
+      if (showLoader) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
       setError("");
+      setSuccess("");
 
-      const response = await api.get<Order[]>("/orders/");
+      const data = await getOrders();
 
-      setOrders(response.data);
+      setOrders(data);
     } catch (err: any) {
       setError(
-        err.response?.data?.detail ||
+        getErrorMessage(
+          err,
           "Unable to load orders.",
+        ),
       );
     } finally {
       setLoading(false);
@@ -74,150 +244,183 @@ export default function AdminOrders() {
     loadOrders();
   }, []);
 
-  /* ============================================================
+  /* ==========================================================
      REFRESH
-  ============================================================ */
+  ========================================================== */
 
   async function handleRefresh() {
-    setRefreshing(true);
-    await loadOrders();
+    await loadOrders(false);
   }
 
-  /* ============================================================
-     CHANGE ORDER STATUS
-  ============================================================ */
+  /* ==========================================================
+     UPDATE STATUS
+  ========================================================== */
 
   async function handleStatusChange(
-    orderId: number,
-    newStatus: string,
+    order: Order,
+    newStatus: OrderStatus,
   ) {
-    if (!newStatus) {
+    if (order.status === newStatus) {
       return;
     }
 
     try {
-      setUpdatingId(orderId);
+      setUpdatingOrderId(order.id);
+
       setError("");
+      setSuccess("");
 
-      /*
-       * IMPORTANT:
-       * Backend expects:
-       *
-       * {
-       *   "status": "confirmed"
-       * }
-       */
+      const updatedOrder =
+        await updateOrderStatus(
+          order.id,
+          newStatus,
+        );
 
-      const response = await api.patch<Order>(
-        `/orders/${orderId}/status`,
-        {
-          status: newStatus,
-        },
+      setOrders((current) =>
+        current.map((currentOrder) =>
+          currentOrder.id === order.id
+            ? updatedOrder
+            : currentOrder,
+        ),
       );
 
-      setOrders((currentOrders) =>
-        currentOrders.map((order) =>
-          order.id === orderId
-            ? response.data
-            : order,
-        ),
+      setSuccess(
+        `Order #${order.id} status updated to ${newStatus}.`,
       );
     } catch (err: any) {
       setError(
-        err.response?.data?.detail ||
+        getErrorMessage(
+          err,
           "Unable to update order status.",
+        ),
       );
     } finally {
-      setUpdatingId(null);
+      setUpdatingOrderId(null);
     }
   }
 
-  /* ============================================================
-     STATUS ICON
-  ============================================================ */
+  /* ==========================================================
+     DELETE ORDER
+  ========================================================== */
 
-  function statusIcon(status: string) {
-    switch (status.toLowerCase()) {
-      case "confirmed":
-        return (
-          <CheckCircle2
-            size={16}
-            className="text-green-600"
-          />
-        );
+  async function handleDelete(
+    order: Order,
+  ) {
+    const confirmed =
+      window.confirm(
+        `Are you sure you want to delete Order #${order.id}?`,
+      );
 
-      case "completed":
-        return (
-          <CheckCircle2
-            size={16}
-            className="text-blue-600"
-          />
-        );
+    if (!confirmed) {
+      return;
+    }
 
-      case "cancelled":
-        return (
-          <XCircle
-            size={16}
-            className="text-red-500"
-          />
-        );
+    try {
+      setDeletingOrderId(order.id);
 
-      default:
-        return (
-          <Clock3
-            size={16}
-            className="text-orange-500"
-          />
-        );
+      setError("");
+      setSuccess("");
+
+      await deleteOrder(order.id);
+
+      setOrders((current) =>
+        current.filter(
+          (currentOrder) =>
+            currentOrder.id !== order.id,
+        ),
+      );
+
+      if (
+        expandedOrderId === order.id
+      ) {
+        setExpandedOrderId(null);
+      }
+
+      setSuccess(
+        `Order #${order.id} deleted successfully.`,
+      );
+    } catch (err: any) {
+      setError(
+        getErrorMessage(
+          err,
+          "Unable to delete order.",
+        ),
+      );
+    } finally {
+      setDeletingOrderId(null);
     }
   }
 
-  /* ============================================================
-     STATUS STYLE
-  ============================================================ */
+  /* ==========================================================
+     FILTER ORDERS
+  ========================================================== */
 
-  function statusClass(status: string) {
-    switch (status.toLowerCase()) {
-      case "confirmed":
-        return "bg-green-50 text-green-700 border-green-100";
+  const filteredOrders = useMemo(() => {
+    const query =
+      search.trim().toLowerCase();
 
-      case "completed":
-        return "bg-blue-50 text-blue-700 border-blue-100";
+    return orders.filter((order) => {
+      const matchesSearch =
+        !query ||
+        String(order.id).includes(
+          query,
+        ) ||
+        String(order.user_id).includes(
+          query,
+        ) ||
+        order.status
+          .toLowerCase()
+          .includes(query);
 
-      case "cancelled":
-        return "bg-red-50 text-red-600 border-red-100";
+      const matchesStatus =
+        statusFilter === "all" ||
+        order.status === statusFilter;
 
-      default:
-        return "bg-orange-50 text-orange-700 border-orange-100";
-    }
-  }
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
+    });
+  }, [
+    orders,
+    search,
+    statusFilter,
+  ]);
 
-  /* ============================================================
-     FORMAT STATUS
-  ============================================================ */
+  /* ==========================================================
+     SUMMARY
+  ========================================================== */
 
-  function formatStatus(status: string) {
-    return (
-      status.charAt(0).toUpperCase() +
-      status.slice(1)
-    );
-  }
+  const totalOrders =
+    orders.length;
 
-  /* ============================================================
-     GET AVAILABLE NEXT STATUSES
-  ============================================================ */
+  const pendingOrders =
+    orders.filter(
+      (order) =>
+        order.status === "pending",
+    ).length;
 
-  function getNextStatuses(status: string) {
-    return (
-      validTransitions[
-        status.toLowerCase()
-      ] || []
-    );
-  }
+  const confirmedOrders =
+    orders.filter(
+      (order) =>
+        order.status === "confirmed",
+    ).length;
 
-  /* ============================================================
+  const completedOrders =
+    orders.filter(
+      (order) =>
+        order.status === "completed",
+    ).length;
+
+  const cancelledOrders =
+    orders.filter(
+      (order) =>
+        order.status === "cancelled",
+    ).length;
+
+  /* ==========================================================
      LOADING
-  ============================================================ */
+  ========================================================== */
 
   if (loading) {
     return (
@@ -234,46 +437,57 @@ export default function AdminOrders() {
     );
   }
 
-  /* ============================================================
-     PAGE
-  ============================================================ */
+  /* ==========================================================
+     MAIN
+  ========================================================== */
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
 
       {/* ======================================================
           HEADER
-      ======================================================= */}
+      ====================================================== */}
 
-      <header className="border-b border-gray-100 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+      <header className="border-b border-[#24113f] bg-[#32145f]">
+
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
 
           <div className="flex items-center gap-4">
 
             <button
-              onClick={() => navigate("/admin")}
-              className="rounded-xl border border-gray-100 p-2.5 text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
-              title="Back to admin dashboard"
+              type="button"
+              onClick={() =>
+                navigate("/admin")
+              }
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-purple-100 transition hover:bg-white/20 hover:text-white"
+              title="Back to Admin Dashboard"
             >
-              <ArrowLeft size={19} />
+              <ArrowLeft size={18} />
             </button>
 
             <div>
-              <p className="text-xs font-medium text-gray-400">
+
+              <p className="text-sm font-medium text-purple-200">
                 Administration
               </p>
 
-              <h1 className="text-xl font-bold text-[#24113f]">
+              <h1 className="mt-1 text-2xl font-bold text-white">
                 Order Management
               </h1>
+
+              <p className="mt-1 text-sm text-purple-200">
+                View and manage customer orders.
+              </p>
+
             </div>
 
           </div>
 
           <button
+            type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f] disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw
               size={17}
@@ -284,21 +498,20 @@ export default function AdminOrders() {
               }
             />
 
-            Refresh
+            {refreshing
+              ? "Refreshing..."
+              : "Refresh"}
           </button>
 
         </div>
-      </header>
 
-      {/* ======================================================
-          MAIN
-      ======================================================= */}
+      </header>
 
       <main className="mx-auto max-w-7xl px-6 py-10">
 
         {/* ====================================================
-            HEADING
-        ===================================================== */}
+            PAGE TITLE
+        ==================================================== */}
 
         <div className="mb-8">
 
@@ -307,140 +520,252 @@ export default function AdminOrders() {
           </p>
 
           <h2 className="mt-1 text-3xl font-bold text-[#24113f]">
-            Manage Orders
+            Manage Customer Orders
           </h2>
 
           <p className="mt-2 text-sm text-gray-500">
-            Review customer orders and update their status.
+            Review orders and update their
+            current status.
           </p>
 
         </div>
 
         {/* ====================================================
-            ERROR
-        ===================================================== */}
+            ALERTS
+        ==================================================== */}
 
         {error && (
-          <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-600">
-            {error}
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
+
+            <AlertCircle
+              size={20}
+              className="mt-0.5 shrink-0"
+            />
+
+            <div className="flex-1">
+
+              <p className="font-semibold">
+                Something went wrong
+              </p>
+
+              <p className="mt-1">
+                {error}
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setError("")
+              }
+              className="text-red-400 transition hover:text-red-600"
+            >
+              <X size={18} />
+            </button>
+
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
+
+            <Check
+              size={20}
+              className="mt-0.5 shrink-0"
+            />
+
+            <div className="flex-1">
+
+              <p className="font-semibold">
+                Success
+              </p>
+
+              <p className="mt-1">
+                {success}
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setSuccess("")
+              }
+              className="text-green-500 transition hover:text-green-700"
+            >
+              <X size={18} />
+            </button>
+
           </div>
         )}
 
         {/* ====================================================
             SUMMARY
-        ===================================================== */}
+        ==================================================== */}
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
 
-          {/* TOTAL */}
+          <SummaryCard
+            label="Total Orders"
+            value={totalOrders}
+          />
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-400">
-              Total Orders
-            </p>
+          <SummaryCard
+            label="Pending"
+            value={pendingOrders}
+          />
 
-            <p className="mt-2 text-3xl font-bold text-[#24113f]">
-              {orders.length}
-            </p>
-          </div>
+          <SummaryCard
+            label="Confirmed"
+            value={confirmedOrders}
+          />
 
-          {/* PENDING */}
+          <SummaryCard
+            label="Completed"
+            value={completedOrders}
+          />
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-400">
-              Pending
-            </p>
+          <SummaryCard
+            label="Cancelled"
+            value={cancelledOrders}
+          />
 
-            <p className="mt-2 text-3xl font-bold text-orange-600">
-              {
-                orders.filter(
-                  (order) =>
-                    order.status.toLowerCase() ===
-                    "pending",
-                ).length
-              }
-            </p>
-          </div>
-
-          {/* CONFIRMED */}
-
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-400">
-              Confirmed
-            </p>
-
-            <p className="mt-2 text-3xl font-bold text-green-600">
-              {
-                orders.filter(
-                  (order) =>
-                    order.status.toLowerCase() ===
-                    "confirmed",
-                ).length
-              }
-            </p>
-          </div>
-
-          {/* COMPLETED */}
-
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-400">
-              Completed
-            </p>
-
-            <p className="mt-2 text-3xl font-bold text-blue-600">
-              {
-                orders.filter(
-                  (order) =>
-                    order.status.toLowerCase() ===
-                    "completed",
-                ).length
-              }
-            </p>
-          </div>
-
-        </div>
+        </section>
 
         {/* ====================================================
-            ORDERS TABLE
-        ===================================================== */}
+            ORDERS
+        ==================================================== */}
 
         <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
 
-          <div className="border-b border-gray-100 px-6 py-5">
+          {/* HEADER / FILTERS */}
 
-            <h3 className="font-bold text-[#24113f]">
-              All Orders
-            </h3>
+          <div className="border-b border-gray-100 p-6">
 
-            <p className="mt-1 text-sm text-gray-400">
-              Latest orders from all customers
-            </p>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+
+              <div>
+
+                <h3 className="font-bold text-[#24113f]">
+                  Orders
+                </h3>
+
+                <p className="mt-1 text-sm text-gray-400">
+                  {filteredOrders.length}{" "}
+                  {filteredOrders.length === 1
+                    ? "order"
+                    : "orders"}{" "}
+                  shown
+                </p>
+
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+
+                {/* SEARCH */}
+
+                <div className="relative">
+
+                  <Search
+                    size={18}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(event) =>
+                      setSearch(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Search order..."
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-purple-200 focus:bg-white focus:ring-2 focus:ring-purple-50 sm:w-64"
+                  />
+
+                </div>
+
+                {/* STATUS FILTER */}
+
+                <select
+                  value={statusFilter}
+                  onChange={(event) =>
+                    setStatusFilter(
+                      event.target
+                        .value as
+                        | "all"
+                        | OrderStatus,
+                    )
+                  }
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 outline-none transition focus:border-purple-200 focus:bg-white focus:ring-2 focus:ring-purple-50"
+                >
+
+                  <option value="all">
+                    All Statuses
+                  </option>
+
+                  {ORDER_STATUSES.map(
+                    (status) => (
+                      <option
+                        key={status}
+                        value={status}
+                      >
+                        {status
+                          .charAt(0)
+                          .toUpperCase() +
+                          status.slice(
+                            1,
+                          )}
+                      </option>
+                    ),
+                  )}
+
+                </select>
+
+              </div>
+
+            </div>
 
           </div>
 
-          {/* NO ORDERS */}
+          {/* EMPTY */}
 
-          {orders.length === 0 ? (
+          {filteredOrders.length === 0 ? (
 
-            <div className="px-6 py-16 text-center">
-              <p className="text-gray-400">
-                No orders found.
+            <div className="p-16 text-center">
+
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-50 text-[#32145f]">
+                <Package size={28} />
+              </div>
+
+              <h3 className="mt-5 font-bold text-[#24113f]">
+                {orders.length === 0
+                  ? "No orders yet"
+                  : "No matching orders"}
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
+                {orders.length === 0
+                  ? "Customer orders will appear here once they are created."
+                  : "Try changing your search or status filter."}
               </p>
+
             </div>
 
           ) : (
 
+            /* ==================================================
+               TABLE
+            ================================================== */
+
             <div className="overflow-x-auto">
 
-              <table className="w-full min-w-[950px]">
-
-                {/* ==================================================
-                    TABLE HEADER
-                =================================================== */}
+              <table className="w-full min-w-[1100px]">
 
                 <thead>
 
-                  <tr className="border-b border-gray-100 bg-gray-50/70 text-left">
+                  <tr className="border-b border-gray-100 bg-gray-50 text-left">
 
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
                       Order
@@ -463,186 +788,58 @@ export default function AdminOrders() {
                     </th>
 
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Date
+                      Created
                     </th>
 
-                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Action
+                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Actions
                     </th>
 
                   </tr>
 
                 </thead>
 
-                {/* ==================================================
-                    TABLE BODY
-                =================================================== */}
+                <tbody className="divide-y divide-gray-100">
 
-                <tbody>
+                  {filteredOrders.map(
+                    (order) => {
 
-                  {orders.map((order) => {
+                      const expanded =
+                        expandedOrderId ===
+                        order.id;
 
-                    const currentStatus =
-                      order.status.toLowerCase();
+                      const updating =
+                        updatingOrderId ===
+                        order.id;
 
-                    const nextStatuses =
-                      getNextStatuses(
-                        currentStatus,
+                      const deleting =
+                        deletingOrderId ===
+                        order.id;
+
+                      return (
+                        <OrderRow
+                          key={order.id}
+                          order={order}
+                          expanded={expanded}
+                          updating={updating}
+                          deleting={deleting}
+                          onToggle={() =>
+                            setExpandedOrderId(
+                              expanded
+                                ? null
+                                : order.id,
+                            )
+                          }
+                          onStatusChange={
+                            handleStatusChange
+                          }
+                          onDelete={
+                            handleDelete
+                          }
+                        />
                       );
-
-                    const isUpdating =
-                      updatingId === order.id;
-
-                    const canChange =
-                      nextStatuses.length > 0;
-
-                    return (
-
-                      <tr
-                        key={order.id}
-                        className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50"
-                      >
-
-                        {/* ORDER ID */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="font-bold text-[#24113f]">
-                            #{order.id}
-                          </p>
-
-                        </td>
-
-                        {/* CUSTOMER */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="text-sm font-semibold text-gray-700">
-                            User #{order.user_id}
-                          </p>
-
-                        </td>
-
-                        {/* ITEMS */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="text-sm text-gray-600">
-                            {order.items.reduce(
-                              (sum, item) =>
-                                sum + item.quantity,
-                              0,
-                            )}
-                          </p>
-
-                        </td>
-
-                        {/* TOTAL */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="text-sm font-semibold text-gray-700">
-                            ₹{order.total.toFixed(2)}
-                          </p>
-
-                        </td>
-
-                        {/* STATUS */}
-
-                        <td className="px-6 py-5">
-
-                          <span
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${statusClass(
-                              order.status,
-                            )}`}
-                          >
-                            {statusIcon(
-                              order.status,
-                            )}
-
-                            {formatStatus(
-                              order.status,
-                            )}
-                          </span>
-
-                        </td>
-
-                        {/* DATE */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="text-sm text-gray-500">
-                            {new Date(
-                              order.created_at,
-                            ).toLocaleDateString()}
-                          </p>
-
-                        </td>
-
-                        {/* ACTION */}
-
-                        <td className="px-6 py-5">
-
-                          <div className="flex items-center gap-2">
-
-                            <select
-                              value=""
-                              disabled={
-                                isUpdating ||
-                                !canChange
-                              }
-                              onChange={(event) =>
-                                handleStatusChange(
-                                  order.id,
-                                  event.target.value,
-                                )
-                              }
-                              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#32145f] disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
-                            >
-
-                              <option
-                                value=""
-                                disabled
-                              >
-                                {canChange
-                                  ? "Change status"
-                                  : "No changes"}
-                              </option>
-
-                              {nextStatuses.map(
-                                (nextStatus) => (
-                                  <option
-                                    key={
-                                      nextStatus
-                                    }
-                                    value={
-                                      nextStatus
-                                    }
-                                  >
-                                    {formatStatus(
-                                      nextStatus,
-                                    )}
-                                  </option>
-                                ),
-                              )}
-
-                            </select>
-
-                            {isUpdating && (
-                              <Loader2
-                                size={17}
-                                className="animate-spin text-[#32145f]"
-                              />
-                            )}
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-
-                    );
-                  })}
+                    },
+                  )}
 
                 </tbody>
 
@@ -654,7 +851,458 @@ export default function AdminOrders() {
 
         </section>
 
+        {/* ====================================================
+            NAVIGATION
+        ==================================================== */}
+
+        <div className="mt-8 flex flex-wrap gap-3">
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/admin")
+            }
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
+          >
+            <ArrowLeft size={17} />
+            Back to Admin Dashboard
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/admin/menu")
+            }
+            className="rounded-xl border border-purple-100 bg-purple-50 px-5 py-3 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
+          >
+            Manage Menu
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/admin/inventory")
+            }
+            className="rounded-xl border border-purple-100 bg-purple-50 px-5 py-3 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
+          >
+            Manage Inventory
+          </button>
+
+        </div>
+
       </main>
+
+    </div>
+  );
+}
+
+/* ============================================================
+   ORDER ROW
+============================================================ */
+
+function OrderRow({
+  order,
+  expanded,
+  updating,
+  deleting,
+  onToggle,
+  onStatusChange,
+  onDelete,
+}: {
+  order: Order;
+  expanded: boolean;
+  updating: boolean;
+  deleting: boolean;
+  onToggle: () => void;
+  onStatusChange: (
+    order: Order,
+    status: OrderStatus,
+  ) => void;
+  onDelete: (
+    order: Order,
+  ) => void;
+}) {
+  return (
+    <>
+      <tr className="transition hover:bg-gray-50">
+
+        {/* ORDER */}
+
+        <td className="px-6 py-5">
+
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex items-center gap-3 text-left"
+          >
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
+              <Package size={19} />
+            </div>
+
+            <div>
+
+              <p className="font-bold text-[#24113f]">
+                #{order.id}
+              </p>
+
+              <p className="mt-1 text-xs text-gray-400">
+                Order ID
+              </p>
+
+            </div>
+
+          </button>
+
+        </td>
+
+        {/* CUSTOMER */}
+
+        <td className="px-6 py-5">
+
+          <p className="font-semibold text-[#24113f]">
+            User #{order.user_id}
+          </p>
+
+          <p className="mt-1 text-xs text-gray-400">
+            Customer ID
+          </p>
+
+        </td>
+
+        {/* ITEMS */}
+
+        <td className="px-6 py-5">
+
+          <span className="font-semibold text-gray-700">
+            {order.items.length}
+          </span>
+
+          <span className="ml-1 text-sm text-gray-400">
+            {order.items.length === 1
+              ? "item"
+              : "items"}
+          </span>
+
+        </td>
+
+        {/* TOTAL */}
+
+        <td className="px-6 py-5">
+
+          <span className="font-bold text-[#32145f]">
+            {formatPrice(
+              order.total,
+            )}
+          </span>
+
+        </td>
+
+        {/* STATUS */}
+
+        <td className="px-6 py-5">
+
+          <StatusBadge
+            status={order.status}
+          />
+
+        </td>
+
+        {/* DATE */}
+
+        <td className="px-6 py-5">
+
+          <p className="text-sm font-medium text-gray-600">
+            {formatDate(
+              order.created_at,
+            )}
+          </p>
+
+        </td>
+
+        {/* ACTIONS */}
+
+        <td className="px-6 py-5">
+
+          <div className="flex justify-end gap-2">
+
+            <button
+              type="button"
+              onClick={onToggle}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-purple-100 hover:bg-purple-50 hover:text-[#32145f]"
+              title={
+                expanded
+                  ? "Hide order details"
+                  : "Show order details"
+              }
+            >
+              {expanded ? (
+                <ChevronUp size={17} />
+              ) : (
+                <ChevronDown size={17} />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                onDelete(order)
+              }
+              disabled={
+                deleting ||
+                updating
+              }
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Delete order"
+            >
+              {deleting ? (
+                <Loader2
+                  size={16}
+                  className="animate-spin"
+                />
+              ) : (
+                <Trash2 size={16} />
+              )}
+            </button>
+
+          </div>
+
+        </td>
+
+      </tr>
+
+      {/* ======================================================
+          EXPANDED DETAILS
+      ====================================================== */}
+
+      {expanded && (
+        <tr className="bg-gray-50">
+
+          <td
+            colSpan={7}
+            className="px-6 py-6"
+          >
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-5">
+
+              <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
+
+                {/* ITEMS */}
+
+                <div>
+
+                  <h4 className="font-bold text-[#24113f]">
+                    Order Items
+                  </h4>
+
+                  <div className="mt-4 overflow-hidden rounded-xl border border-gray-100">
+
+                    <table className="w-full">
+
+                      <thead>
+
+                        <tr className="bg-gray-50 text-left">
+
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            Item ID
+                          </th>
+
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            Quantity
+                          </th>
+
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            Price
+                          </th>
+
+                          <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            Subtotal
+                          </th>
+
+                        </tr>
+
+                      </thead>
+
+                      <tbody className="divide-y divide-gray-100">
+
+                        {order.items.map(
+                          (item) => (
+                            <tr
+                              key={
+                                item.id
+                              }
+                            >
+
+                              <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                                {
+                                  item.menu_item_name ??
+                                  `Menu Item #${item.menu_item_id}`
+                                }
+                              </td>
+
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {item.quantity}
+                              </td>
+
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {formatPrice(
+                                  item.price,
+                                )}
+                              </td>
+
+                              <td className="px-4 py-3 text-right text-sm font-semibold text-[#32145f]">
+                                {formatPrice(
+                                  item.price *
+                                    item.quantity,
+                                )}
+                              </td>
+
+                            </tr>
+                          ),
+                        )}
+
+                      </tbody>
+
+                    </table>
+
+                  </div>
+
+                </div>
+
+                {/* STATUS CONTROL */}
+
+                <div className="min-w-[250px]">
+
+                  <h4 className="font-bold text-[#24113f]">
+                    Update Status
+                  </h4>
+
+                  <p className="mt-1 text-sm text-gray-400">
+                    Change the current order status.
+                  </p>
+
+                  <div className="mt-4">
+
+                    <select
+                      value={
+                        ORDER_STATUSES.includes(
+                          order.status as OrderStatus,
+                        )
+                          ? order.status
+                          : ""
+                      }
+                      onChange={(event) =>
+                        onStatusChange(
+                          order,
+                          event.target
+                            .value as OrderStatus,
+                        )
+                      }
+                      disabled={updating}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 outline-none transition focus:border-purple-200 focus:ring-2 focus:ring-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+
+                      <option
+                        value=""
+                        disabled
+                      >
+                        Select status
+                      </option>
+
+                      {ORDER_STATUSES.map(
+                        (status) => (
+                          <option
+                            key={status}
+                            value={status}
+                          >
+                            {status
+                              .charAt(
+                                0,
+                              )
+                              .toUpperCase() +
+                              status.slice(
+                                1,
+                              )}
+                          </option>
+                        ),
+                      )}
+
+                    </select>
+
+                    {updating && (
+                      <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
+
+                        <Loader2
+                          size={14}
+                          className="animate-spin"
+                        />
+
+                        Updating order...
+
+                      </div>
+                    )}
+
+                  </div>
+
+                  <div className="mt-5 rounded-xl bg-purple-50 p-4">
+
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#32145f]">
+                      Order Total
+                    </p>
+
+                    <p className="mt-1 text-2xl font-bold text-[#24113f]">
+                      {formatPrice(
+                        order.total,
+                      )}
+                    </p>
+
+                  </div>
+
+                  {order.updated_at && (
+                    <p className="mt-4 text-xs text-gray-400">
+                      Last updated:{" "}
+                      {formatDate(
+                        order.updated_at,
+                      )}
+                    </p>
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </td>
+
+        </tr>
+      )}
+
+    </>
+  );
+}
+
+/* ============================================================
+   SUMMARY CARD
+============================================================ */
+
+function SummaryCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+
+      <p className="text-sm text-gray-400">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-bold text-[#24113f]">
+        {value}
+      </p>
 
     </div>
   );

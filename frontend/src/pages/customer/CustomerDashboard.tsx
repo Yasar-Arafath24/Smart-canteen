@@ -187,14 +187,14 @@ export default function CustomerDashboard() {
       {/* Main */}
       <main className="lg:ml-64">
         {/* Header */}
-        <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 px-6 py-5 backdrop-blur md:px-10">
+        <header className="sticky top-0 z-20 border-b border-[#24113f] bg-[#32145f]/95 px-6 py-5 backdrop-blur md:px-10">
           <div className="flex items-center justify-between gap-6">
             <div>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-purple-200">
                 Customer Dashboard
               </p>
 
-              <h2 className="mt-1 text-2xl font-bold text-[#24113f]">
+              <h2 className="mt-1 text-2xl font-bold text-white">
                 What would you like to eat?
               </h2>
             </div>
@@ -203,7 +203,7 @@ export default function CustomerDashboard() {
               {/* Notifications */}
               <button
                 onClick={() => handleNavigation("Notifications")}
-                className="relative rounded-xl border border-gray-100 bg-white p-3 text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
+                className="relative rounded-xl border border-white/25 bg-white/10 p-3 text-purple-100 transition hover:bg-white/20 hover:text-white"
                 title="Notifications"
               >
                 <Bell size={20} />
@@ -212,13 +212,13 @@ export default function CustomerDashboard() {
               {/* Cart */}
               <button
                 onClick={() => navigate("/cart")}
-                className="relative rounded-xl border border-gray-100 bg-white p-3 text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
+                className="relative rounded-xl border border-white/25 bg-white/10 p-3 text-purple-100 transition hover:bg-white/20 hover:text-white"
                 title="Cart"
               >
                 <ShoppingCart size={20} />
 
                 {totalItems > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#32145f] px-1 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[#32145f]">
                     {totalItems > 99 ? "99+" : totalItems}
                   </span>
                 )}

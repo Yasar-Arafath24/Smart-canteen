@@ -3,6 +3,7 @@ import { api } from "./client";
 export interface OrderItem {
   id: number;
   menu_item_id: number;
+  menu_item_name: string | null;
   quantity: number;
   price: number;
 }

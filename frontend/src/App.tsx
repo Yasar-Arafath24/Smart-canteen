@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import AdminMenu from "./pages/admin/AdminMenu";
 import Login from "./pages/auth/Login";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -14,8 +14,28 @@ import Profile from "./pages/customer/Profile";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInventory from "./pages/admin/AdminInventory";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
+import Navbar from "./components/Navbar";
+
+function CustomerLayout() {
+  return (
+    <>
+      <Navbar role="customer" />
+      <Outlet />
+    </>
+  );
+}
+
+function AdminLayout() {
+  return (
+    <>
+      <Navbar role="admin" />
+      <Outlet />
+    </>
+  );
+}
 
 function App() {
   const [stage, setStage] = useState<
@@ -25,11 +45,11 @@ function App() {
   useEffect(() => {
     const fadeTimer = setTimeout(() => {
       setStage("fading");
-    }, 1200);
+    }, 2400);
 
     const doneTimer = setTimeout(() => {
       setStage("done");
-    }, 1700);
+    }, 3000);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -44,8 +64,9 @@ function App() {
   }
 
   return (
-    <CartProvider>
-      <Routes>
+    <div className="app-enter">
+      <CartProvider>
+        <Routes>
         {/* =========================
             LOGIN
         ========================= */}
@@ -56,101 +77,90 @@ function App() {
         />
 
         {/* =========================
-            CUSTOMER DASHBOARD
+            CUSTOMER PAGES
         ========================= */}
 
-        <Route
-          path="/dashboard"
-          element={<CustomerDashboard />}
-        />
+        <Route element={<CustomerLayout />}>
+
+          <Route
+            path="/dashboard"
+            element={<CustomerDashboard />}
+          />
+
+          <Route
+            path="/cart"
+            element={<Cart />}
+          />
+
+          <Route
+            path="/checkout"
+            element={<Checkout />}
+          />
+
+          <Route
+            path="/payment"
+            element={<Payment />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<Notifications />}
+          />
+
+          <Route
+            path="/profile"
+            element={<Profile />}
+          />
+
+          <Route
+            path="/orders"
+            element={<Orders />}
+          />
+
+          <Route
+            path="/orders/:orderId"
+            element={<OrderDetails />}
+          />
+
+        </Route>
 
         {/* =========================
-            CART
+            ADMIN PAGES
         ========================= */}
 
-        <Route
-          path="/cart"
-          element={<Cart />}
-        />
+        <Route element={<AdminLayout />}>
 
-        {/* =========================
-            CHECKOUT
-        ========================= */}
+          <Route
+            path="/admin"
+            element={<AdminDashboard />}
+          />
 
-        <Route
-          path="/checkout"
-          element={<Checkout />}
-        />
+          <Route
+            path="/admin/orders"
+            element={<AdminOrders />}
+          />
 
-        {/* =========================
-            PAYMENT
-        ========================= */}
+          <Route
+            path="/admin/users"
+            element={<AdminUsers />}
+          />
 
-        <Route
-          path="/payment"
-          element={<Payment />}
-        />
+          <Route
+            path="/admin/inventory"
+            element={<AdminInventory />}
+          />
 
-        {/* =========================
-            NOTIFICATIONS
-        ========================= */}
+          <Route
+            path="/admin/menu"
+            element={<AdminMenu />}
+          />
 
-        <Route
-          path="/notifications"
-          element={<Notifications />}
-        />
+          <Route
+            path="/admin/analytics"
+            element={<AdminAnalytics />}
+          />
 
-        {/* =========================
-            PROFILE
-        ========================= */}
-
-        <Route
-          path="/profile"
-          element={<Profile />}
-        />
-
-        {/* =========================
-            MY ORDERS
-        ========================= */}
-
-        <Route
-          path="/orders"
-          element={<Orders />}
-        />
-
-        {/* =========================
-            ORDER DETAILS
-        ========================= */}
-
-        <Route
-          path="/orders/:orderId"
-          element={<OrderDetails />}
-        />
-
-        {/* =========================
-            ADMIN DASHBOARD
-        ========================= */}
-<Route
-  path="/admin"
-  element={<AdminDashboard />}
-/>
-
-<Route
-  path="/admin/orders"
-  element={<AdminOrders />}
-/>
-<Route
-  path="/admin/users"
-  element={<AdminUsers />}
-/>
-<Route
-  path="/admin/inventory"
-  element={<AdminInventory />}
-/>
-<Route
-  path="/admin/menu"
-  element={<AdminMenu />}
-/>
+        </Route>
 
 
         {/* =========================
@@ -181,7 +191,8 @@ function App() {
           }
         />
       </Routes>
-    </CartProvider>
+      </CartProvider>
+    </div>
   );
 }
 
