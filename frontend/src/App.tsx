@@ -27,6 +27,7 @@ import StaffInventory from "./pages/staff/StaffInventory";
 import StaffNotifications from "./pages/staff/StaffNotifications";
 import StaffAttendance from "./pages/staff/StaffAttendance";
 import StaffProfile from "./pages/staff/StaffProfile";
+import AdminActivity from "./pages/admin/AdminActivity";
 function CustomerLayout() {
   return (
     <>
@@ -229,6 +230,10 @@ function App() {
           />
 
         </Route>
+        <Route
+  path="/admin/activity"
+  element={<AdminActivity />}
+/>
 
         {/* =========================
             DEFAULT

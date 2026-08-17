@@ -12,7 +12,7 @@ def create_activity(
     description: str,
     entity_type: str | None = None,
     entity_id: int | None = None,
-):
+) -> ActivityLog:
     activity = ActivityLog(
         actor_id=actor.id if actor else None,
         actor_name=actor.name if actor else "System",
@@ -23,8 +23,7 @@ def create_activity(
     )
 
     db.add(activity)
-    db.commit()
-    db.refresh(activity)
+    db.flush()
 
     return activity
 
@@ -41,7 +40,8 @@ def get_activities(
     query = (
         db.query(ActivityLog)
         .order_by(
-            ActivityLog.created_at.desc()
+            ActivityLog.created_at.desc(),
+            ActivityLog.id.desc(),
         )
     )
 
@@ -52,14 +52,12 @@ def get_activities(
 
     if entity_type:
         query = query.filter(
-            ActivityLog.entity_type
-            == entity_type
+            ActivityLog.entity_type == entity_type
         )
 
-    if actor_id:
+    if actor_id is not None:
         query = query.filter(
-            ActivityLog.actor_id
-            == actor_id
+            ActivityLog.actor_id == actor_id
         )
 
     return (

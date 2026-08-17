@@ -1,4 +1,5 @@
 import {
+  Activity,
   AlertCircle,
   ArrowRight,
   BarChart3,
@@ -6,7 +7,6 @@ import {
   Clock3,
   ClipboardList,
   Edit3,
-  FolderTree,
   Loader2,
   Package,
   RefreshCw,
@@ -15,7 +15,13 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -117,9 +123,23 @@ export default function AdminDashboard() {
         getMenuItems(),
       ]);
 
-      setOrders(ordersData);
-      setUsers(usersData);
-      setMenuItems(menuData);
+      setOrders(
+        Array.isArray(ordersData)
+          ? ordersData
+          : [],
+      );
+
+      setUsers(
+        Array.isArray(usersData)
+          ? usersData
+          : [],
+      );
+
+      setMenuItems(
+        Array.isArray(menuData)
+          ? menuData
+          : [],
+      );
     } catch (err: any) {
       console.error(
         "Admin dashboard error:",
@@ -202,12 +222,14 @@ export default function AdminDashboard() {
 
     const availableMenuItems =
       menuItems.filter(
-        (item) => item.is_available,
+        (item) =>
+          item.is_available,
       ).length;
 
     const unavailableMenuItems =
       menuItems.filter(
-        (item) => !item.is_available,
+        (item) =>
+          !item.is_available,
       ).length;
 
     const lowStockItems =
@@ -219,15 +241,13 @@ export default function AdminDashboard() {
 
     const outOfStockItems =
       menuItems.filter(
-        (item) => item.stock === 0,
+        (item) =>
+          item.stock === 0,
       ).length;
 
     return {
-      totalOrders:
-        orders.length,
-
-      totalUsers:
-        users.length,
+      totalOrders: orders.length,
+      totalUsers: users.length,
 
       pending,
       confirmed,
@@ -238,13 +258,9 @@ export default function AdminDashboard() {
 
       totalMenuItems:
         menuItems.length,
-
       availableMenuItems,
-
       unavailableMenuItems,
-
       lowStockItems,
-
       outOfStockItems,
     };
   }, [
@@ -257,35 +273,38 @@ export default function AdminDashboard() {
      RECENT ORDERS
   ========================================================== */
 
-  const recentOrders = useMemo(() => {
-    return [...orders]
-      .sort(
-        (a, b) =>
-          new Date(
-            b.created_at,
-          ).getTime() -
-          new Date(
-            a.created_at,
-          ).getTime(),
-      )
-      .slice(0, 10);
-  }, [orders]);
+  const recentOrders =
+    useMemo(() => {
+      return [...orders]
+        .sort(
+          (a, b) =>
+            new Date(
+              b.created_at,
+            ).getTime() -
+            new Date(
+              a.created_at,
+            ).getTime(),
+        )
+        .slice(0, 10);
+    }, [orders]);
 
   /* ==========================================================
-     LOW STOCK
+     LOW STOCK MENU ITEMS
   ========================================================== */
 
-  const lowStockItems = useMemo(() => {
-    return menuItems
-      .filter(
-        (item) => item.stock <= 5,
-      )
-      .sort(
-        (a, b) =>
-          a.stock - b.stock,
-      )
-      .slice(0, 8);
-  }, [menuItems]);
+  const lowStockItems =
+    useMemo(() => {
+      return menuItems
+        .filter(
+          (item) =>
+            item.stock <= 5,
+        )
+        .sort(
+          (a, b) =>
+            a.stock - b.stock,
+        )
+        .slice(0, 8);
+    }, [menuItems]);
 
   /* ==========================================================
      LOADING
@@ -294,14 +313,18 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafa]">
+
         <div className="flex items-center gap-3 text-sm text-gray-400">
+
           <Loader2
             size={20}
             className="animate-spin"
           />
 
           Loading admin dashboard...
+
         </div>
+
       </div>
     );
   }
@@ -339,9 +362,7 @@ export default function AdminDashboard() {
 
           <button
             type="button"
-            onClick={
-              handleRefresh
-            }
+            onClick={handleRefresh}
             disabled={refreshing}
             className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -422,14 +443,13 @@ export default function AdminDashboard() {
 
             <p className="mt-1 text-sm text-gray-400">
               Manage orders, inventory, menu items,
-              categories, customers, and analytics.
+              customers, analytics, and system activity.
             </p>
 
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
 
-            {/* ORDERS */}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
 
             <ManagementCard
               icon={
@@ -446,8 +466,6 @@ export default function AdminDashboard() {
               }
             />
 
-            {/* INVENTORY */}
-
             <ManagementCard
               icon={
                 <Package size={22} />
@@ -460,8 +478,6 @@ export default function AdminDashboard() {
                 )
               }
             />
-
-            {/* MENU */}
 
             <ManagementCard
               icon={
@@ -476,25 +492,6 @@ export default function AdminDashboard() {
               }
             />
 
-            {/* CATEGORIES */}
-
-            <ManagementCard
-              icon={
-                <FolderTree
-                  size={22}
-                />
-              }
-              title="Categories"
-              description="Create and organize menu categories."
-              onClick={() =>
-                navigate(
-                  "/admin/categories",
-                )
-              }
-            />
-
-            {/* CUSTOMERS */}
-
             <ManagementCard
               icon={
                 <Users size={22} />
@@ -508,8 +505,6 @@ export default function AdminDashboard() {
               }
             />
 
-            {/* ANALYTICS */}
-
             <ManagementCard
               icon={
                 <BarChart3
@@ -521,6 +516,21 @@ export default function AdminDashboard() {
               onClick={() =>
                 navigate(
                   "/admin/analytics",
+                )
+              }
+            />
+
+            <ManagementCard
+              icon={
+                <Activity
+                  size={22}
+                />
+              }
+              title="Activity"
+              description="View system activity and audit logs."
+              onClick={() =>
+                navigate(
+                  "/admin/activity",
                 )
               }
             />
@@ -546,6 +556,7 @@ export default function AdminDashboard() {
             </h2>
 
           </div>
+
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -583,9 +594,7 @@ export default function AdminDashboard() {
 
             <StatCard
               icon={
-                <Package
-                  size={21}
-                />
+                <Package size={21} />
               }
               label="Revenue"
               value={`₹${statistics.revenue.toFixed(
@@ -621,47 +630,21 @@ export default function AdminDashboard() {
 
             </div>
 
-            <div className="flex flex-wrap gap-2">
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    "/admin/categories",
-                  )
-                }
-                className="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
-              >
-                <FolderTree
-                  size={16}
-                />
-
-                Categories
-
-                <ArrowRight
-                  size={16}
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    "/admin/menu",
-                  )
-                }
-                className="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
-              >
-                Manage Menu
-
-                <ArrowRight
-                  size={16}
-                />
-              </button>
-
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/admin/menu",
+                )
+              }
+              className="flex items-center gap-2 self-start rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
+            >
+              Manage Menu
+              <ArrowRight size={16} />
+            </button>
 
           </div>
+
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -689,9 +672,7 @@ export default function AdminDashboard() {
 
             <StatCard
               icon={
-                <Clock3
-                  size={21}
-                />
+                <Clock3 size={21} />
               }
               label="Low Stock"
               value={
@@ -701,9 +682,7 @@ export default function AdminDashboard() {
 
             <StatCard
               icon={
-                <XCircle
-                  size={21}
-                />
+                <XCircle size={21} />
               }
               label="Out of Stock"
               value={
@@ -732,6 +711,7 @@ export default function AdminDashboard() {
             </h2>
 
           </div>
+
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -811,21 +791,17 @@ export default function AdminDashboard() {
               type="button"
               onClick={() =>
                 navigate(
-                  "/admin/inventory",
+                  "/admin/menu",
                 )
               }
               className="flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
             >
-
               Manage Stock
-
-              <ArrowRight
-                size={16}
-              />
-
+              <ArrowRight size={16} />
             </button>
 
           </div>
+
 
           {lowStockItems.length ===
           0 ? (
@@ -853,7 +829,6 @@ export default function AdminDashboard() {
 
               {lowStockItems.map(
                 (item) => (
-
                   <div
                     key={item.id}
                     className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
@@ -866,9 +841,7 @@ export default function AdminDashboard() {
                           src={
                             item.image_url
                           }
-                          alt={
-                            item.name
-                          }
+                          alt={item.name}
                           className="h-12 w-12 rounded-xl object-cover"
                           onError={(
                             event,
@@ -902,6 +875,7 @@ export default function AdminDashboard() {
 
                     </div>
 
+
                     <div className="flex items-center gap-4">
 
                       <span
@@ -922,11 +896,11 @@ export default function AdminDashboard() {
                         type="button"
                         onClick={() =>
                           navigate(
-                            "/admin/inventory",
+                            "/admin/menu",
                           )
                         }
                         className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-purple-100 hover:bg-purple-50 hover:text-[#32145f]"
-                        title="Manage inventory"
+                        title="Manage menu"
                       >
                         <Edit3
                           size={16}
@@ -936,7 +910,6 @@ export default function AdminDashboard() {
                     </div>
 
                   </div>
-
                 ),
               )}
 
@@ -975,16 +948,12 @@ export default function AdminDashboard() {
               }
               className="flex items-center justify-center gap-2 self-start rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
             >
-
               View All Orders
-
-              <ArrowRight
-                size={16}
-              />
-
+              <ArrowRight size={16} />
             </button>
 
           </div>
+
 
           {recentOrders.length ===
           0 ? (
@@ -1070,9 +1039,11 @@ export default function AdminDashboard() {
                         >
 
                           <td className="px-6 py-5">
+
                             <span className="font-semibold text-[#24113f]">
                               #{order.id}
                             </span>
+
                           </td>
 
                           <td className="px-6 py-5">
@@ -1161,14 +1132,20 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
-                <Users size={19} />
+
+                <Users
+                  size={19}
+                />
+
               </div>
 
             </div>
 
           </div>
 
-          {users.length === 0 ? (
+
+          {users.length ===
+          0 ? (
 
             <div className="p-10 text-center text-sm text-gray-400">
               No users found.
@@ -1227,7 +1204,9 @@ export default function AdminDashboard() {
 
           )}
 
-          {users.length > 10 && (
+
+          {users.length >
+            10 && (
             <div className="border-t border-gray-100 p-5 text-center">
 
               <button
@@ -1240,11 +1219,9 @@ export default function AdminDashboard() {
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[#32145f] hover:underline"
               >
                 View All Customers
-
                 <ArrowRight
                   size={16}
                 />
-
               </button>
 
             </div>
@@ -1253,56 +1230,122 @@ export default function AdminDashboard() {
         </section>
 
         {/* ====================================================
-            QUICK MANAGEMENT
+            MENU QUICK LINK
         ==================================================== */}
 
-        <section className="mt-10 grid gap-5 md:grid-cols-3">
+        <section className="mt-10 rounded-3xl border border-purple-100 bg-purple-50 p-6">
 
-          <QuickLink
-            icon={
-              <FolderTree
-                size={22}
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-center gap-4">
+
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-[#32145f] shadow-sm">
+
+                <Store
+                  size={23}
+                />
+
+              </div>
+
+              <div>
+
+                <h2 className="font-bold text-[#24113f]">
+                  Menu Management
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+
+                  {statistics.totalMenuItems}{" "}
+                  menu{" "}
+                  {statistics.totalMenuItems ===
+                  1
+                    ? "item"
+                    : "items"}{" "}
+                  •{" "}
+                  {statistics.availableMenuItems}{" "}
+                  available •{" "}
+                  {statistics.outOfStockItems}{" "}
+                  out of stock
+
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/admin/menu",
+                )
+              }
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#32145f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
+            >
+              Open Menu Management
+              <ArrowRight
+                size={17}
               />
-            }
-            title="Category Management"
-            description="Create and organize menu categories."
-            buttonText="Manage Categories"
-            onClick={() =>
-              navigate(
-                "/admin/categories",
-              )
-            }
-          />
+            </button>
 
-          <QuickLink
-            icon={
-              <Store size={22} />
-            }
-            title="Menu Management"
-            description="Add, edit, delete, and manage menu items."
-            buttonText="Manage Menu"
-            onClick={() =>
-              navigate(
-                "/admin/menu",
-              )
-            }
-          />
+          </div>
 
-          <QuickLink
-            icon={
-              <BarChart3
-                size={22}
+        </section>
+
+        {/* ====================================================
+            ACTIVITY QUICK LINK
+        ==================================================== */}
+
+        <section className="mt-8 rounded-3xl border border-purple-100 bg-white p-6 shadow-sm">
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-center gap-4">
+
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
+
+                <Activity
+                  size={23}
+                />
+
+              </div>
+
+              <div>
+
+                <p className="text-sm font-medium text-[#32145f]">
+                  System Monitoring
+                </p>
+
+                <h2 className="mt-1 font-bold text-[#24113f]">
+                  Activity & Audit Logs
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Review orders, inventory, staff, attendance, and user activity.
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/admin/activity",
+                )
+              }
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#32145f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
+            >
+              Open Activity
+              <ArrowRight
+                size={17}
               />
-            }
-            title="Analytics"
-            description="View detailed sales and performance graphs."
-            buttonText="Open Analytics"
-            onClick={() =>
-              navigate(
-                "/admin/analytics",
-              )
-            }
-          />
+            </button>
+
+          </div>
 
         </section>
 
@@ -1376,54 +1419,6 @@ function ManagementCard({
       </p>
 
     </button>
-  );
-}
-
-/* ============================================================
-   QUICK LINK
-============================================================ */
-
-function QuickLink({
-  icon,
-  title,
-  description,
-  buttonText,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  buttonText: string;
-  onClick: () => void;
-}) {
-  return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
-        {icon}
-      </div>
-
-      <h3 className="mt-5 font-bold text-[#24113f]">
-        {title}
-      </h3>
-
-      <p className="mt-2 min-h-[40px] text-sm text-gray-400">
-        {description}
-      </p>
-
-      <button
-        type="button"
-        onClick={onClick}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#32145f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
-      >
-        {buttonText}
-
-        <ArrowRight
-          size={16}
-        />
-      </button>
-
-    </div>
   );
 }
 

@@ -16,7 +16,10 @@ config.set_main_option(
     "sqlalchemy.url",
     settings.DATABASE_URL.replace("%", "%%")
 )
+from app.db.database import Base
+from app import models  # noqa: F401
 
+target_metadata = Base.metadata
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

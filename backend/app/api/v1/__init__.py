@@ -19,10 +19,47 @@ from app.api.v1 import (
     email_test,
     notification_ws,
 )
+from app.api import activity_ws
+from fastapi import APIRouter
+
+from app.api import (
+    category,
+    inventory,
+    menu,
+    order,
+    dashboard,
+    payment,
+    notification,
+    activity,
+)
+
+from app.api.v1 import (
+    auth,
+    users,
+    email_test,
+    notification_ws,
+)
 
 
 api_router = APIRouter()
 
+api_router.include_router(auth.router)
+api_router.include_router(users.router)
+api_router.include_router(order.router)
+api_router.include_router(category.router)
+api_router.include_router(menu.router)
+api_router.include_router(inventory.router)
+api_router.include_router(dashboard.router)
+api_router.include_router(payment.router)
+api_router.include_router(notification.router)
+api_router.include_router(email_test.router)
+api_router.include_router(notification_ws.router)
+api_router.include_router(activity.router)
+api_router = APIRouter()
+
+api_router.include_router(
+    activity_ws.router
+)
 
 # ============================================================
 # AUTH

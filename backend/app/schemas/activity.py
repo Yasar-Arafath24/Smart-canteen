@@ -11,11 +11,8 @@ class ActivityResponse(BaseModel):
     id: int
     actor_id: int | None
     actor_name: str | None
-
     action: str
-
     entity_type: str | None
     entity_id: int | None
-
     description: str
     created_at: datetime
