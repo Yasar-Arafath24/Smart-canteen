@@ -6,7 +6,7 @@ from app.core.security import hash_password
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import StaffCreate, UserOut
-
+from app.crud.activity import create_activity
 
 router = APIRouter(
     prefix="/staff",

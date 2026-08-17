@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -157,6 +158,34 @@ export default function StaffOrders() {
     useState("");
 
   /* ==========================================================
+     MODAL BODY SCROLL LOCK
+  ========================================================== */
+
+  useEffect(() => {
+    if (
+      confirmingOrderId !== null &&
+      pendingStatus !== null
+    ) {
+      const previousOverflow =
+        document.body.style.overflow;
+
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        document.body.style.overflow =
+          previousOverflow;
+      };
+    }
+
+    document.body.style.overflow = "";
+
+    return undefined;
+  }, [
+    confirmingOrderId,
+    pendingStatus,
+  ]);
+
+  /* ==========================================================
      LOAD ORDERS
   ========================================================== */
 
@@ -196,6 +225,10 @@ export default function StaffOrders() {
       setRefreshing(false);
     }
   }
+
+  /* ==========================================================
+     INITIAL LOAD
+  ========================================================== */
 
   useEffect(() => {
     loadOrders();
@@ -290,8 +323,7 @@ export default function StaffOrders() {
             ).includes(query);
 
           const matchesStatus =
-            statusFilter ===
-              "all" ||
+            statusFilter === "all" ||
             status === statusFilter;
 
           return (
@@ -304,39 +336,6 @@ export default function StaffOrders() {
       search,
       statusFilter,
     ]);
-
-  /* ==========================================================
-     OPEN STATUS CONFIRMATION
-  ========================================================== */
-
-  function openStatusConfirmation(
-    orderId: number,
-    status: OrderStatus,
-  ) {
-    setConfirmingOrderId(
-      orderId,
-    );
-
-    setPendingStatus(status);
-
-    setError("");
-    setSuccess("");
-  }
-
-  /* ==========================================================
-     CLOSE CONFIRMATION
-  ========================================================== */
-
-  function closeStatusConfirmation() {
-    if (
-      updatingOrderId !== null
-    ) {
-      return;
-    }
-
-    setConfirmingOrderId(null);
-    setPendingStatus(null);
-  }
 
   /* ==========================================================
      VALID ACTIONS
@@ -356,14 +355,40 @@ export default function StaffOrders() {
         return ["completed"];
 
       case "completed":
-        return [];
-
       case "cancelled":
-        return [];
-
       default:
         return [];
     }
+  }
+
+  /* ==========================================================
+     OPEN CONFIRMATION
+  ========================================================== */
+
+  function openStatusConfirmation(
+    orderId: number,
+    status: OrderStatus,
+  ) {
+    setError("");
+    setSuccess("");
+
+    setConfirmingOrderId(orderId);
+    setPendingStatus(status);
+  }
+
+  /* ==========================================================
+     CLOSE CONFIRMATION
+  ========================================================== */
+
+  function closeStatusConfirmation() {
+    if (
+      updatingOrderId !== null
+    ) {
+      return;
+    }
+
+    setConfirmingOrderId(null);
+    setPendingStatus(null);
   }
 
   /* ==========================================================
@@ -446,11 +471,12 @@ export default function StaffOrders() {
           .toUpperCase() +
         pendingStatus.slice(1);
 
+      setConfirmingOrderId(null);
+      setPendingStatus(null);
+
       setSuccess(
         `Order #${updated.id} is now ${statusLabel}.`,
       );
-
-      closeStatusConfirmation();
 
       window.setTimeout(() => {
         setSuccess("");
@@ -490,6 +516,19 @@ export default function StaffOrders() {
   }
 
   /* ==========================================================
+     CURRENT MODAL ORDER
+  ========================================================== */
+
+  const selectedOrder =
+    confirmingOrderId !== null
+      ? orders.find(
+          (order) =>
+            order.id ===
+            confirmingOrderId,
+        ) ?? null
+      : null;
+
+  /* ==========================================================
      MAIN
   ========================================================== */
 
@@ -513,9 +552,7 @@ export default function StaffOrders() {
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white transition hover:bg-white/20"
               title="Back to staff dashboard"
             >
-              <ArrowLeft
-                size={18}
-              />
+              <ArrowLeft size={18} />
             </button>
 
             <div>
@@ -536,9 +573,7 @@ export default function StaffOrders() {
 
           <button
             type="button"
-            onClick={
-              handleRefresh
-            }
+            onClick={handleRefresh}
             disabled={refreshing}
             className="flex items-center gap-2 self-start rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
           >
@@ -681,8 +716,6 @@ export default function StaffOrders() {
 
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
 
-            {/* SEARCH */}
-
             <div className="relative w-full xl:max-w-xl">
 
               <Search
@@ -703,8 +736,6 @@ export default function StaffOrders() {
               />
 
             </div>
-
-            {/* STATUS FILTERS */}
 
             <div className="flex flex-wrap gap-2">
 
@@ -926,8 +957,6 @@ export default function StaffOrders() {
                           className="transition hover:bg-gray-50"
                         >
 
-                          {/* ORDER */}
-
                           <td className="px-6 py-5">
 
                             <p className="font-bold text-[#24113f]">
@@ -941,8 +970,6 @@ export default function StaffOrders() {
 
                           </td>
 
-                          {/* CUSTOMER */}
-
                           <td className="px-6 py-5">
 
                             <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
@@ -953,8 +980,6 @@ export default function StaffOrders() {
                             </span>
 
                           </td>
-
-                          {/* ITEMS */}
 
                           <td className="px-6 py-5">
 
@@ -973,8 +998,6 @@ export default function StaffOrders() {
 
                           </td>
 
-                          {/* TOTAL */}
-
                           <td className="px-6 py-5">
 
                             <span className="font-bold text-[#32145f]">
@@ -989,8 +1012,6 @@ export default function StaffOrders() {
 
                           </td>
 
-                          {/* STATUS */}
-
                           <td className="px-6 py-5">
 
                             <OrderStatus
@@ -1000,8 +1021,6 @@ export default function StaffOrders() {
                             />
 
                           </td>
-
-                          {/* DATE */}
 
                           <td className="px-6 py-5">
 
@@ -1018,8 +1037,6 @@ export default function StaffOrders() {
                             </p>
 
                           </td>
-
-                          {/* ACTIONS */}
 
                           <td className="px-6 py-5">
 
@@ -1167,51 +1184,71 @@ export default function StaffOrders() {
 
       {/* ======================================================
           CONFIRMATION MODAL
+          RENDERED DIRECTLY INTO BODY
       ====================================================== */}
 
-      {confirmingOrderId !==
-        null &&
-        pendingStatus && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      {confirmingOrderId !== null &&
+        pendingStatus &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+            onClick={(event) => {
+              if (
+                event.target ===
+                event.currentTarget
+              ) {
+                closeStatusConfirmation();
+              }
+            }}
+          >
 
-            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="staff-order-modal-title"
+              className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
+            >
 
-              <div className="border-b border-gray-100 p-6">
+              {/* MODAL HEADER */}
 
-                <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-6">
 
-                  <div>
+                <div>
 
-                    <p className="text-sm font-medium text-[#32145f]">
-                      Order Action
-                    </p>
+                  <p className="text-sm font-medium text-[#32145f]">
+                    Order Action
+                  </p>
 
-                    <h2 className="mt-1 text-xl font-bold text-[#24113f]">
-                      Update Order #
-                      {
-                        confirmingOrderId
-                      }
-                    </h2>
-
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={
-                      closeStatusConfirmation
-                    }
-                    disabled={
-                      updatingOrderId !==
-                      null
-                    }
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  <h2
+                    id="staff-order-modal-title"
+                    className="mt-1 text-xl font-bold text-[#24113f]"
                   >
-                    <X size={17} />
-                  </button>
+                    Update Order #
+                    {
+                      confirmingOrderId
+                    }
+                  </h2>
 
                 </div>
 
+                <button
+                  type="button"
+                  onClick={
+                    closeStatusConfirmation
+                  }
+                  disabled={
+                    updatingOrderId !==
+                    null
+                  }
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
+
               </div>
+
+              {/* MODAL BODY */}
 
               <div className="p-6">
 
@@ -1231,28 +1268,68 @@ export default function StaffOrders() {
                   }`}
                 >
 
-                  <p
-                    className={`text-lg font-bold capitalize ${
-                      pendingStatus ===
-                      "cancelled"
-                        ? "text-red-600"
-                        : pendingStatus ===
-                          "completed"
-                          ? "text-green-700"
-                          : "text-[#32145f]"
-                    }`}
-                  >
-                    {pendingStatus}
-                  </p>
+                  <div className="flex items-center justify-between gap-4">
+
+                    <div>
+
+                      <p
+                        className={`text-lg font-bold capitalize ${
+                          pendingStatus ===
+                          "cancelled"
+                            ? "text-red-600"
+                            : pendingStatus ===
+                              "completed"
+                              ? "text-green-700"
+                              : "text-[#32145f]"
+                        }`}
+                      >
+                        {pendingStatus}
+                      </p>
+
+                      {selectedOrder && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Current status:{" "}
+                          <span className="font-semibold capitalize">
+                            {normalizeStatus(
+                              selectedOrder.status,
+                            )}
+                          </span>
+                        </p>
+                      )}
+
+                    </div>
+
+                    {pendingStatus ===
+                    "completed" ? (
+                      <CheckCircle2
+                        size={24}
+                        className="text-green-600"
+                      />
+                    ) : pendingStatus ===
+                      "cancelled" ? (
+                      <XCircle
+                        size={24}
+                        className="text-red-500"
+                      />
+                    ) : (
+                      <CheckCircle2
+                        size={24}
+                        className="text-[#32145f]"
+                      />
+                    )}
+
+                  </div>
 
                 </div>
 
                 {pendingStatus ===
                   "cancelled" && (
-                  <p className="mt-4 text-xs text-red-500">
-                    Cancellation is only available for pending orders.
+                  <p className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-600">
+                    This will cancel the pending order.
                   </p>
                 )}
+
+                {/* MODAL ACTIONS */}
 
                 <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
 
@@ -1265,7 +1342,7 @@ export default function StaffOrders() {
                       updatingOrderId !==
                       null
                     }
-                    className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1279,7 +1356,7 @@ export default function StaffOrders() {
                       updatingOrderId !==
                       null
                     }
-                    className={`flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
                       pendingStatus ===
                       "cancelled"
                         ? "bg-red-600 hover:bg-red-700"
@@ -1294,22 +1371,16 @@ export default function StaffOrders() {
                     null ? (
                       <>
                         <Loader2
-                          size={
-                            17
-                          }
+                          size={17}
                           className="animate-spin"
                         />
-
                         Updating...
                       </>
                     ) : (
                       <>
                         <Check
-                          size={
-                            17
-                          }
+                          size={17}
                         />
-
                         Confirm
                       </>
                     )}
@@ -1322,7 +1393,8 @@ export default function StaffOrders() {
 
             </div>
 
-          </div>
+          </div>,
+          document.body,
         )}
 
     </div>
@@ -1467,9 +1539,7 @@ function OrderStatus({
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${
-        styles[status]
-      }`}
+      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${styles[status]}`}
     >
       {labels[status]}
     </span>

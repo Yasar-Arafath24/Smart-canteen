@@ -1,18 +1,13 @@
 from typing import List
-from app.api.deps import (
-    get_current_user,
-    get_current_admin,
-    get_current_staff_or_admin,
-)
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, selectinload
 
-from app.db.database import get_db
 from app.api.deps import (
     get_current_user,
-    get_current_admin,
+    get_current_staff_or_admin,
 )
+from app.db.database import get_db
 from app.models.user import User
 from app.models.order import Order, OrderItem
 from app.schemas.order import (
@@ -32,6 +27,7 @@ from app.services.notification_service import (
     notify_staff_new_order,
     notify_staff_order_status,
 )
+from app.crud.activity import create_activity
 
 
 router = APIRouter(
@@ -40,9 +36,11 @@ router = APIRouter(
 )
 
 
-# ---------------------------------------------------------
-# CREATE ORDER
-# ---------------------------------------------------------
+# ============================================================
+# ALL ORDERS
+# STAFF + ADMIN
+# ============================================================
+
 @router.get(
     "/",
     response_model=List[OrderResponse],
@@ -57,10 +55,19 @@ def list_all_orders(
         db.query(Order)
         .order_by(Order.id.desc())
         .options(
-            selectinload(Order.items),
+            selectinload(Order.items).selectinload(
+                OrderItem.menu_item
+            ),
         )
         .all()
     )
+
+
+# ============================================================
+# CREATE ORDER
+# CUSTOMER
+# ============================================================
+
 @router.post(
     "/",
     response_model=OrderResponse,
@@ -68,7 +75,9 @@ def list_all_orders(
 )
 async def create(
     order: OrderCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     created_order = await create_order(
@@ -83,21 +92,35 @@ async def create(
         total=float(created_order.total),
     )
 
+    create_activity(
+        db=db,
+        actor=current_user,
+        action="order_created",
+        entity_type="order",
+        entity_id=created_order.id,
+        description=(
+            f"Order #{created_order.id} "
+            f"was created."
+        ),
+    )
+
     db.commit()
 
     return created_order
 
 
-# ---------------------------------------------------------
+# ============================================================
 # CUSTOMER'S ORDERS
-# ---------------------------------------------------------
+# ============================================================
 
 @router.get(
     "/me",
     response_model=List[OrderResponse],
 )
 def list_my_orders(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     return get_orders(
@@ -106,33 +129,9 @@ def list_my_orders(
     )
 
 
-# ---------------------------------------------------------
-# ADMIN - ALL ORDERS
-# ---------------------------------------------------------
-
-@router.get(
-    "/",
-    response_model=List[OrderResponse],
-)
-def list_all_orders(
-    current_admin: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
-    return (
-        db.query(Order)
-        .order_by(Order.id.desc())
-        .options(
-            selectinload(Order.items).selectinload(
-                OrderItem.menu_item
-            ),
-        )
-        .all()
-    )
-
-
-# ---------------------------------------------------------
+# ============================================================
 # CANCEL MY ORDER
-# ---------------------------------------------------------
+# ============================================================
 
 @router.patch(
     "/{order_id}/cancel",
@@ -140,7 +139,9 @@ def list_all_orders(
 )
 async def cancel_my_order(
     order_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     order = await cancel_order(
@@ -155,12 +156,26 @@ async def cancel_my_order(
             detail="Order not found",
         )
 
+    create_activity(
+        db=db,
+        actor=current_user,
+        action="order_cancelled",
+        entity_type="order",
+        entity_id=order.id,
+        description=(
+            f"Order #{order.id} "
+            f"was cancelled."
+        ),
+    )
+
+    db.commit()
+
     return order
 
 
-# ---------------------------------------------------------
+# ============================================================
 # GET ONE ORDER
-# ---------------------------------------------------------
+# ============================================================
 
 @router.get(
     "/{order_id}",
@@ -168,7 +183,9 @@ async def cancel_my_order(
 )
 def get_one(
     order_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     order = get_order(
@@ -182,8 +199,11 @@ def get_one(
             detail="Order not found",
         )
 
-    # Admin can view any order
-    if current_user.role == "admin":
+    # Admin/staff can view any order
+    if current_user.role in {
+        "admin",
+        "staff",
+    }:
         return order
 
     # Customer can only view their own order
@@ -195,9 +215,10 @@ def get_one(
 
     return order
 
-# ---------------------------------------------------------
+
+# ============================================================
 # STAFF / ADMIN - UPDATE ORDER STATUS
-# ---------------------------------------------------------
+# ============================================================
 
 @router.patch(
     "/{order_id}/status",
@@ -222,6 +243,8 @@ async def change_order_status(
             detail="Order not found",
         )
 
+    previous_status = order.status
+
     updated_order = await update_order_status(
         db=db,
         order_id=order_id,
@@ -234,13 +257,28 @@ async def change_order_status(
         new_status=updated_order.status,
     )
 
+    create_activity(
+        db=db,
+        actor=current_user,
+        action="order_status_changed",
+        entity_type="order",
+        entity_id=updated_order.id,
+        description=(
+            f"Order #{updated_order.id} "
+            f"changed from "
+            f"{previous_status} to "
+            f"{updated_order.status}."
+        ),
+    )
+
     db.commit()
 
     return updated_order
 
-# ---------------------------------------------------------
+
+# ============================================================
 # DELETE ORDER
-# ---------------------------------------------------------
+# ============================================================
 
 @router.delete(
     "/{order_id}",
@@ -248,7 +286,9 @@ async def change_order_status(
 )
 def delete_my_order(
     order_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     order = get_order(
@@ -264,7 +304,10 @@ def delete_my_order(
 
     # Admin can delete any order
     if current_user.role == "admin":
-        deleted = delete_order(db=db, order_id=order_id)
+        deleted = delete_order(
+            db=db,
+            order_id=order_id,
+        )
 
         if not deleted:
             raise HTTPException(
@@ -272,16 +315,35 @@ def delete_my_order(
                 detail="Order not found",
             )
 
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        create_activity(
+            db=db,
+            actor=current_user,
+            action="order_deleted",
+            entity_type="order",
+            entity_id=order_id,
+            description=(
+                f"Order #{order_id} "
+                f"was deleted."
+            ),
+        )
 
-    # Customer can only delete their own order
+        db.commit()
+
+        return Response(
+            status_code=status.HTTP_204_NO_CONTENT
+        )
+
+    # Customer can only delete own order
     if order.user_id != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Not authorized to delete this order",
         )
 
-    deleted = delete_order(db=db, order_id=order_id)
+    deleted = delete_order(
+        db=db,
+        order_id=order_id,
+    )
 
     if not deleted:
         raise HTTPException(
@@ -289,4 +351,20 @@ def delete_my_order(
             detail="Order not found",
         )
 
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    create_activity(
+        db=db,
+        actor=current_user,
+        action="order_deleted",
+        entity_type="order",
+        entity_id=order_id,
+        description=(
+            f"Order #{order_id} "
+            f"was deleted by the customer."
+        ),
+    )
+
+    db.commit()
+
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT
+    )

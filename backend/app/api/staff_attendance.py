@@ -7,6 +7,7 @@ from app.api.deps import (
     get_current_admin,
     get_current_staff_or_admin,
 )
+from app.crud.activity import create_activity
 from app.crud.staff_attendance import (
     clock_in,
     clock_out,
@@ -27,6 +28,10 @@ router = APIRouter(
     tags=["Staff Attendance"],
 )
 
+
+# ============================================================
+# HELPERS
+# ============================================================
 
 def calculate_worked_seconds(
     attendance,
@@ -51,18 +56,18 @@ def calculate_worked_seconds(
             tzinfo=timezone.utc
         )
 
-    return max(
-        int(
-            (
-                end - start
-            ).total_seconds()
-        ),
-        0,
+    seconds = int(
+        (
+            end - start
+        ).total_seconds()
     )
+
+    return max(seconds, 0)
 
 
 # ============================================================
-# STAFF - CLOCK IN
+# STAFF / ADMIN
+# CLOCK IN
 # ============================================================
 
 @router.post(
@@ -75,14 +80,32 @@ def staff_clock_in(
     ),
     db: Session = Depends(get_db),
 ):
-    return clock_in(
+    attendance = clock_in(
         db=db,
         staff_id=current_user.id,
     )
 
+    create_activity(
+        db=db,
+        actor=current_user,
+        action="staff_clock_in",
+        entity_type="attendance",
+        entity_id=attendance.id,
+        description=(
+            f"{current_user.name} "
+            f"clocked in."
+        ),
+    )
+
+    db.commit()
+    db.refresh(attendance)
+
+    return attendance
+
 
 # ============================================================
-# STAFF - CLOCK OUT
+# STAFF / ADMIN
+# CLOCK OUT
 # ============================================================
 
 @router.post(
@@ -95,14 +118,32 @@ def staff_clock_out(
     ),
     db: Session = Depends(get_db),
 ):
-    return clock_out(
+    attendance = clock_out(
         db=db,
         staff_id=current_user.id,
     )
 
+    create_activity(
+        db=db,
+        actor=current_user,
+        action="staff_clock_out",
+        entity_type="attendance",
+        entity_id=attendance.id,
+        description=(
+            f"{current_user.name} "
+            f"clocked out."
+        ),
+    )
+
+    db.commit()
+    db.refresh(attendance)
+
+    return attendance
+
 
 # ============================================================
-# STAFF - CURRENT STATUS
+# STAFF / ADMIN
+# CURRENT STATUS
 # ============================================================
 
 @router.get(
@@ -121,16 +162,21 @@ def staff_current_status(
     )
 
     return AttendanceStatusResponse(
-        is_clocked_in=attendance is not None,
+        is_clocked_in=(
+            attendance is not None
+        ),
         attendance=attendance,
-        worked_seconds=calculate_worked_seconds(
-            attendance
+        worked_seconds=(
+            calculate_worked_seconds(
+                attendance
+            )
         ),
     )
 
 
 # ============================================================
-# STAFF - HISTORY
+# STAFF / ADMIN
+# MY HISTORY
 # ============================================================
 
 @router.get(
@@ -150,7 +196,8 @@ def staff_history(
 
 
 # ============================================================
-# ADMIN - ALL ATTENDANCE
+# ADMIN ONLY
+# ALL STAFF ATTENDANCE
 # ============================================================
 
 @router.get(
@@ -182,7 +229,9 @@ def all_staff_attendance(
                 "staff_name": (
                     staff.name
                     if staff
-                    else f"User #{record.staff_id}"
+                    else (
+                        f"User #{record.staff_id}"
+                    )
                 ),
                 "staff_email": (
                     staff.email
@@ -191,8 +240,10 @@ def all_staff_attendance(
                 ),
                 "clock_in": record.clock_in,
                 "clock_out": record.clock_out,
-                "worked_seconds": calculate_worked_seconds(
-                    record
+                "worked_seconds": (
+                    calculate_worked_seconds(
+                        record
+                    )
                 ),
                 "is_current": (
                     record.clock_out is None

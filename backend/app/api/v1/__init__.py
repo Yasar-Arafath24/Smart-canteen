@@ -10,6 +10,7 @@ from app.api import (
     notification,
     staff,
     staff_attendance,
+    activity,
 )
 
 from app.api.v1 import (
@@ -137,4 +138,12 @@ api_router.include_router(
 
 api_router.include_router(
     staff_attendance.router
+)
+
+# ============================================================
+# ACTIVITY LOG
+# ============================================================
+
+api_router.include_router(
+    activity.router
 )

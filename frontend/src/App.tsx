@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import AdminMenu from "./pages/admin/AdminMenu";
 import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import AdminOrders from "./pages/admin/AdminOrders";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import Cart from "./pages/customer/Cart";
@@ -90,6 +91,15 @@ function App() {
         <Route
           path="/login"
           element={<Login />}
+        />
+
+        {/* =========================
+            REGISTER
+        ========================= */}
+        
+        <Route
+          path="/register"
+          element={<Register />}
         />
 
         {/* =========================
