@@ -135,16 +135,6 @@ async def create_order(
         db.commit()
         db.refresh(db_order)
 
-        await admin_analytics_manager.broadcast(
-            {
-                "type": "ORDER_CREATED",
-                "order_id": db_order.id,
-                "user_id": db_order.user_id,
-                "status": db_order.status,
-                "total": float(db_order.total),
-            }
-        )
-
         return db_order
 
     except HTTPException:
@@ -305,16 +295,6 @@ async def update_order_status(
 
     db.commit()
     db.refresh(order)
-
-    await admin_analytics_manager.broadcast(
-        {
-            "type": "ORDER_STATUS_CHANGED",
-            "order_id": order.id,
-            "user_id": order.user_id,
-            "status": order.status,
-            "total": float(order.total),
-        }
-    )
 
     # ---------------------------------------------------------
     # COMPLETED EMAIL

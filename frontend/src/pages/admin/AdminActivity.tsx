@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { useNavigate } from "react-router-dom";
+import Footer from "../../components/Footer";
 
 import {
   getActivity,
@@ -316,6 +317,8 @@ export default function AdminActivity() {
         </section>
 
       </main>
+
+      <Footer />
 
     </div>
   );

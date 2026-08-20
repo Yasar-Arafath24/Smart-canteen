@@ -20,6 +20,8 @@ import AdminStaffAttendance from "./pages/admin/AdminStaffAttendance";
 import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import InfoPage from "./pages/InfoPage";
 import StaffOrders from "./pages/staff/StaffOrders";
 import AdminCategories from "./pages/admin/AdminCategories";
 import StaffDashboard from "./pages/staff/StaffDashboard";
@@ -33,6 +35,7 @@ function CustomerLayout() {
     <>
       <Navbar role="customer" />
       <Outlet />
+      <Footer />
     </>
   );
 }
@@ -42,6 +45,7 @@ function AdminLayout() {
     <>
       <Navbar role="admin" />
       <Outlet />
+      <Footer />
     </>
   );
 }
@@ -51,6 +55,7 @@ function StaffLayout() {
     <>
       <Navbar role="staff" />
       <Outlet />
+      <Footer />
     </>
   );
 }
@@ -234,6 +239,40 @@ function App() {
   path="/admin/activity"
   element={<AdminActivity />}
 />
+
+        {/* =========================
+            INFO PAGES
+        ========================= */}
+
+        <Route
+          path="/faq"
+          element={
+            <InfoPage
+              title="FAQ"
+              description="Frequently asked questions"
+            />
+          }
+        />
+
+        <Route
+          path="/privacy-policy"
+          element={
+            <InfoPage
+              title="Privacy Policy"
+              description="How we handle your data"
+            />
+          }
+        />
+
+        <Route
+          path="/cookies"
+          element={
+            <InfoPage
+              title="Cookies"
+              description="How we use cookies"
+            />
+          }
+        />
 
         {/* =========================
             DEFAULT

@@ -66,13 +66,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
-from app.api.admin_ws import admin_websocket
-
-app.add_api_websocket_route(
-    f"{settings.API_V1_PREFIX}/ws/admin",
-    admin_websocket,
-)
-
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 

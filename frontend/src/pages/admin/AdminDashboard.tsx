@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -32,6 +33,11 @@ import {
 } from "../../api/admin";
 
 import { api } from "../../api/client";
+
+import {
+  createAdminDashboardSocket,
+  type AdminDashboardEvent,
+} from "../../api/adminDashboardSocket";
 
 /* ============================================================
    TYPES
@@ -90,6 +96,9 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] =
     useState(false);
 
+  const [liveConnected, setLiveConnected] =
+    useState(false);
+
   /* ==========================================================
      ALERTS
   ========================================================== */
@@ -101,61 +110,64 @@ export default function AdminDashboard() {
      LOAD DASHBOARD
   ========================================================== */
 
-  async function loadDashboard(
-    showLoading = true,
-  ) {
-    try {
-      if (showLoading) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
+  const loadDashboard = useCallback(
+    async (
+      showLoading = true,
+    ) => {
+      try {
+        if (showLoading) {
+          setLoading(true);
+        } else {
+          setRefreshing(true);
+        }
+
+        setError("");
+
+        const [
+          ordersData,
+          usersData,
+          menuData,
+        ] = await Promise.all([
+          getAllOrders(),
+          getAllUsers(),
+          getMenuItems(),
+        ]);
+
+        setOrders(
+          Array.isArray(ordersData)
+            ? ordersData
+            : [],
+        );
+
+        setUsers(
+          Array.isArray(usersData)
+            ? usersData
+            : [],
+        );
+
+        setMenuItems(
+          Array.isArray(menuData)
+            ? menuData
+            : [],
+        );
+      } catch (err: any) {
+        console.error(
+          "Admin dashboard error:",
+          err,
+        );
+
+        setError(
+          err?.response?.data?.detail ||
+            err?.response?.data?.message ||
+            "Unable to load admin dashboard.",
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      setError("");
-
-      const [
-        ordersData,
-        usersData,
-        menuData,
-      ] = await Promise.all([
-        getAllOrders(),
-        getAllUsers(),
-        getMenuItems(),
-      ]);
-
-      setOrders(
-        Array.isArray(ordersData)
-          ? ordersData
-          : [],
-      );
-
-      setUsers(
-        Array.isArray(usersData)
-          ? usersData
-          : [],
-      );
-
-      setMenuItems(
-        Array.isArray(menuData)
-          ? menuData
-          : [],
-      );
-    } catch (err: any) {
-      console.error(
-        "Admin dashboard error:",
-        err,
-      );
-
-      setError(
-        err?.response?.data?.detail ||
-          err?.response?.data?.message ||
-          "Unable to load admin dashboard.",
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+    },
+    [],
+  );
 
   /* ==========================================================
      INITIAL LOAD
@@ -163,7 +175,35 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [loadDashboard]);
+
+  /* ==========================================================
+     LIVE WEBSOCKET
+  ========================================================== */
+
+  useEffect(() => {
+    const socket =
+      createAdminDashboardSocket(
+        (
+          _event: AdminDashboardEvent,
+        ) => {
+          /*
+           * The backend event means our currently
+           * loaded dashboard data is stale.
+           *
+           * Re-fetch the dashboard so every card,
+           * recent order, revenue value, and inventory
+           * value remains authoritative.
+           */
+          loadDashboard(false);
+        },
+        setLiveConnected,
+      );
+
+    return () => {
+      socket?.close();
+    };
+  }, [loadDashboard]);
 
   /* ==========================================================
      REFRESH
@@ -360,6 +400,24 @@ export default function AdminDashboard() {
 
           </div>
 
+          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-xs font-semibold text-white">
+
+            <span
+              className={`h-2 w-2 rounded-full ${
+                liveConnected
+                  ? "animate-pulse bg-green-400"
+                  : "bg-yellow-300"
+              }`}
+            />
+
+            {liveConnected
+              ? "Live"
+              : "Connecting..."}
+
+          </div>
+
           <button
             type="button"
             onClick={handleRefresh}
@@ -381,6 +439,8 @@ export default function AdminDashboard() {
               : "Refresh"}
 
           </button>
+
+          </div>
 
         </div>
 

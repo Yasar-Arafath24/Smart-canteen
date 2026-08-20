@@ -8,6 +8,8 @@ import {
   Mail,
 } from "lucide-react";
 
+import Footer from "../../components/Footer";
+
 import {
   login,
   saveAuth,
@@ -316,6 +318,8 @@ export default function Login() {
         </div>
 
       </div>
+
+      <Footer />
 
     </div>
   );

@@ -1,112 +1,54 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-
-from app.api.deps import get_current_admin
-from app.db.database import SessionLocal
-from app.models.user import User
-from app.services.admin_ws import admin_analytics_manager
+from fastapi import WebSocket
 
 
-router = APIRouter(
-    tags=["Admin Realtime"],
-)
+class AdminAnalyticsManager:
+    def __init__(self):
+        self.connections: list[WebSocket] = []
 
+    async def connect(
+        self,
+        websocket: WebSocket,
+    ):
+        await websocket.accept()
 
-@router.websocket("/ws/admin")
-async def admin_websocket(
-    websocket: WebSocket,
-):
-    db = SessionLocal()
+        if websocket not in self.connections:
+            self.connections.append(websocket)
 
-    try:
-        # -----------------------------------------------------
-        # Authenticate admin from the existing Authorization
-        # token sent by the frontend.
-        # -----------------------------------------------------
+    def disconnect(
+        self,
+        websocket: WebSocket,
+    ):
+        if websocket in self.connections:
+            self.connections.remove(websocket)
 
-        authorization = websocket.headers.get(
-            "authorization"
+    async def broadcast(
+        self,
+        message: dict,
+    ):
+        connections = list(
+            self.connections
         )
 
-        if not authorization:
-            await websocket.close(code=1008)
+        if not connections:
             return
 
-        if not authorization.lower().startswith(
-            "bearer "
-        ):
-            await websocket.close(code=1008)
-            return
+        disconnected: list[WebSocket] = []
 
-        token = authorization.split(
-            " ",
-            1,
-        )[1]
+        for websocket in connections:
+            try:
+                await websocket.send_json(
+                    message
+                )
 
-        # get_current_admin normally expects a FastAPI
-        # dependency rather than a raw token, so the easiest
-        # safe approach is to validate the token directly here.
-        from jose import JWTError, jwt
-        from app.core.config import settings
+            except Exception:
+                disconnected.append(
+                    websocket
+                )
 
-        try:
-            payload = jwt.decode(
-                token,
-                settings.SECRET_KEY,
-                algorithms=[settings.ALGORITHM],
+        for websocket in disconnected:
+            self.disconnect(
+                websocket
             )
 
-            user_id = payload.get("sub")
 
-            if not user_id:
-                await websocket.close(code=1008)
-                return
-
-        except JWTError:
-            await websocket.close(code=1008)
-            return
-
-        user = (
-            db.query(User)
-            .filter(User.id == int(user_id))
-            .first()
-        )
-
-        if not user or not user.is_active:
-            await websocket.close(code=1008)
-            return
-
-        if user.role != "admin":
-            await websocket.close(code=1008)
-            return
-
-        # -----------------------------------------------------
-        # Connect admin
-        # -----------------------------------------------------
-
-        await admin_analytics_manager.connect(
-            websocket
-        )
-
-        await websocket.send_json(
-            {
-                "type": "CONNECTED",
-                "message": "Admin realtime connection established",
-            }
-        )
-
-        while True:
-            # Keep connection alive and detect disconnects.
-            await websocket.receive_text()
-
-    except WebSocketDisconnect:
-        admin_analytics_manager.disconnect(
-            websocket
-        )
-
-    except Exception:
-        admin_analytics_manager.disconnect(
-            websocket
-        )
-
-    finally:
-        db.close()
+admin_analytics_manager = AdminAnalyticsManager()

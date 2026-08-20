@@ -19,6 +19,8 @@ import {
 
 import { api } from "../../api/client";
 
+import Footer from "../../components/Footer";
+
 
 interface RegisterResponse {
   id: number;
@@ -537,6 +539,8 @@ export default function Register() {
         </div>
 
       </div>
+
+      <Footer />
 
     </div>
   );

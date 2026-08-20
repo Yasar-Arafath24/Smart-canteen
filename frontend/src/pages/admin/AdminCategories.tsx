@@ -26,6 +26,7 @@ import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../../api/client";
+import Footer from "../../components/Footer";
 
 /* ============================================================
    TYPES
@@ -1776,6 +1777,8 @@ function FoodCard({
 
         </div>
       )}
+
+      <Footer />
 
     </div>
   );

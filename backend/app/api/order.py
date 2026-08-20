@@ -27,6 +27,9 @@ from app.services.notification_service import (
     notify_staff_new_order,
     notify_staff_order_status,
 )
+from app.services.admin_ws import (
+    admin_analytics_manager,
+)
 from app.crud.activity import create_activity
 
 
@@ -102,6 +105,18 @@ async def create(
             f"Order #{created_order.id} "
             f"was created."
         ),
+    )
+
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "ORDER_CREATED",
+            "order_id": created_order.id,
+            "user_id": created_order.user_id,
+            "status": created_order.status,
+            "total": float(
+                created_order.total
+            ),
+        }
     )
 
     db.commit()
@@ -269,6 +284,18 @@ async def change_order_status(
             f"{previous_status} to "
             f"{updated_order.status}."
         ),
+    )
+
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "ORDER_STATUS_CHANGED",
+            "order_id": updated_order.id,
+            "previous_status": previous_status,
+            "status": updated_order.status,
+            "total": float(
+                updated_order.total
+            ),
+        }
     )
 
     db.commit()

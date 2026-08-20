@@ -27,9 +27,11 @@ import {
   type AdminOrder,
 } from "../../api/admin";
 
-/* ============================================================
-   STATUS TYPES
-============================================================ */
+import {
+  createAdminDashboardSocket,
+  type AdminDashboardEvent,
+} from "../../api/adminDashboardSocket";
+
 
 type OrderStatus =
   | "pending"
@@ -41,29 +43,27 @@ type StatusFilter =
   | "all"
   | OrderStatus;
 
-/* ============================================================
-   HELPERS
-============================================================ */
 
 function normalizeStatus(
-  status: string,
+  value: string,
 ): OrderStatus | "unknown" {
-  const normalized =
-    status?.toLowerCase().trim();
+  const status =
+    value?.toLowerCase().trim();
 
   if (
-    normalized === "pending" ||
-    normalized === "confirmed" ||
-    normalized === "completed" ||
-    normalized === "cancelled"
+    status === "pending" ||
+    status === "confirmed" ||
+    status === "completed" ||
+    status === "cancelled"
   ) {
-    return normalized;
+    return status;
   }
 
   return "unknown";
 }
 
-function formatDate(
+
+function formatDateTime(
   value: string,
 ) {
   const date = new Date(value);
@@ -72,51 +72,45 @@ function formatDate(
     return "—";
   }
 
-  return date.toLocaleDateString(
+  return date.toLocaleString(
     undefined,
     {
-      day: "numeric",
+      day: "2-digit",
       month: "short",
       year: "numeric",
-    },
-  );
-}
-
-function formatTime(
-  value: string,
-) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toLocaleTimeString(
-    undefined,
-    {
       hour: "2-digit",
       minute: "2-digit",
     },
   );
 }
 
-/* ============================================================
-   STAFF ORDERS
-============================================================ */
+
+function getAllowedActions(
+  status:
+    | OrderStatus
+    | "unknown",
+): OrderStatus[] {
+  switch (status) {
+    case "pending":
+      return [
+        "confirmed",
+        "cancelled",
+      ];
+
+    case "confirmed":
+      return ["completed"];
+
+    default:
+      return [];
+  }
+}
+
 
 export default function StaffOrders() {
   const navigate = useNavigate();
 
-  /* ==========================================================
-     DATA
-  ========================================================== */
-
   const [orders, setOrders] =
     useState<AdminOrder[]>([]);
-
-  /* ==========================================================
-     LOADING
-  ========================================================== */
 
   const [loading, setLoading] =
     useState(true);
@@ -124,32 +118,14 @@ export default function StaffOrders() {
   const [refreshing, setRefreshing] =
     useState(false);
 
-  /* ==========================================================
-     FILTERS
-  ========================================================== */
+  const [updatingId, setUpdatingId] =
+    useState<number | null>(null);
 
   const [search, setSearch] =
     useState("");
 
-  const [statusFilter, setStatusFilter] =
+  const [filter, setFilter] =
     useState<StatusFilter>("all");
-
-  /* ==========================================================
-     ACTION STATE
-  ========================================================== */
-
-  const [updatingOrderId, setUpdatingOrderId] =
-    useState<number | null>(null);
-
-  const [confirmingOrderId, setConfirmingOrderId] =
-    useState<number | null>(null);
-
-  const [pendingStatus, setPendingStatus] =
-    useState<OrderStatus | null>(null);
-
-  /* ==========================================================
-     ALERTS
-  ========================================================== */
 
   const [error, setError] =
     useState("");
@@ -157,43 +133,27 @@ export default function StaffOrders() {
   const [success, setSuccess] =
     useState("");
 
-  /* ==========================================================
-     MODAL BODY SCROLL LOCK
-  ========================================================== */
-
-  useEffect(() => {
-    if (
-      confirmingOrderId !== null &&
-      pendingStatus !== null
-    ) {
-      const previousOverflow =
-        document.body.style.overflow;
-
-      document.body.style.overflow = "hidden";
-
-      return () => {
-        document.body.style.overflow =
-          previousOverflow;
-      };
-    }
-
-    document.body.style.overflow = "";
-
-    return undefined;
-  }, [
+  const [
     confirmingOrderId,
-    pendingStatus,
-  ]);
+    setConfirmingOrderId,
+  ] = useState<number | null>(null);
 
-  /* ==========================================================
-     LOAD ORDERS
-  ========================================================== */
+  const [
+    pendingStatus,
+    setPendingStatus,
+  ] = useState<OrderStatus | null>(null);
+
+  const [
+    liveConnected,
+    setLiveConnected,
+  ] = useState(false);
+
 
   async function loadOrders(
-    showInitialLoading = true,
+    initial = true,
   ) {
     try {
-      if (showInitialLoading) {
+      if (initial) {
         setLoading(true);
       } else {
         setRefreshing(true);
@@ -211,14 +171,14 @@ export default function StaffOrders() {
       );
     } catch (err: any) {
       console.error(
-        "Staff orders load error:",
+        "Staff orders error:",
         err,
       );
 
       setError(
         err?.response?.data?.detail ||
           err?.response?.data?.message ||
-          "Unable to load orders.",
+          "Unable to load staff orders.",
       );
     } finally {
       setLoading(false);
@@ -226,71 +186,92 @@ export default function StaffOrders() {
     }
   }
 
-  /* ==========================================================
-     INITIAL LOAD
-  ========================================================== */
 
   useEffect(() => {
     loadOrders();
   }, []);
 
-  /* ==========================================================
-     REFRESH
-  ========================================================== */
 
-  async function handleRefresh() {
-    await loadOrders(false);
-  }
+  /*
+   * Staff dashboard WebSocket.
+   *
+   * We use the same event stream already used
+   * by the admin dashboard. When an order event
+   * arrives, refresh the authoritative order list.
+   */
+  useEffect(() => {
+    const socket =
+      createAdminDashboardSocket(
+        (
+          event: AdminDashboardEvent,
+        ) => {
+          if (
+            event.type ===
+              "ORDER_CREATED" ||
+            event.type ===
+              "ORDER_STATUS_CHANGED"
+          ) {
+            loadOrders(false);
+          }
+        },
+        (
+          connected,
+        ) => {
+          setLiveConnected(
+            connected,
+          );
+        },
+      );
 
-  /* ==========================================================
-     STATISTICS
-  ========================================================== */
-
-  const statistics = useMemo(() => {
-    const pending =
-      orders.filter(
-        (order) =>
-          normalizeStatus(
-            order.status,
-          ) === "pending",
-      ).length;
-
-    const confirmed =
-      orders.filter(
-        (order) =>
-          normalizeStatus(
-            order.status,
-          ) === "confirmed",
-      ).length;
-
-    const completed =
-      orders.filter(
-        (order) =>
-          normalizeStatus(
-            order.status,
-          ) === "completed",
-      ).length;
-
-    const cancelled =
-      orders.filter(
-        (order) =>
-          normalizeStatus(
-            order.status,
-          ) === "cancelled",
-      ).length;
-
-    return {
-      total: orders.length,
-      pending,
-      confirmed,
-      completed,
-      cancelled,
+    return () => {
+      socket?.close();
     };
-  }, [orders]);
+  }, []);
 
-  /* ==========================================================
-     FILTERED ORDERS
-  ========================================================== */
+
+  const statistics =
+    useMemo(() => {
+      const pending =
+        orders.filter(
+          (order) =>
+            normalizeStatus(
+              order.status,
+            ) === "pending",
+        ).length;
+
+      const confirmed =
+        orders.filter(
+          (order) =>
+            normalizeStatus(
+              order.status,
+            ) === "confirmed",
+        ).length;
+
+      const completed =
+        orders.filter(
+          (order) =>
+            normalizeStatus(
+              order.status,
+            ) === "completed",
+        ).length;
+
+      const cancelled =
+        orders.filter(
+          (order) =>
+            normalizeStatus(
+              order.status,
+            ) === "cancelled",
+        ).length;
+
+      return {
+        total: orders.length,
+        pending,
+        confirmed,
+        completed,
+        cancelled,
+      };
+    }, [orders]);
+
 
   const filteredOrders =
     useMemo(() => {
@@ -322,68 +303,36 @@ export default function StaffOrders() {
               order.user_id,
             ).includes(query);
 
-          const matchesStatus =
-            statusFilter === "all" ||
-            status === statusFilter;
+          const matchesFilter =
+            filter === "all" ||
+            status === filter;
 
           return (
             matchesSearch &&
-            matchesStatus
+            matchesFilter
           );
         });
     }, [
       orders,
       search,
-      statusFilter,
+      filter,
     ]);
 
-  /* ==========================================================
-     VALID ACTIONS
-  ========================================================== */
 
-  function getAllowedActions(
-    status: OrderStatus | "unknown",
-  ): OrderStatus[] {
-    switch (status) {
-      case "pending":
-        return [
-          "confirmed",
-          "cancelled",
-        ];
-
-      case "confirmed":
-        return ["completed"];
-
-      case "completed":
-      case "cancelled":
-      default:
-        return [];
-    }
-  }
-
-  /* ==========================================================
-     OPEN CONFIRMATION
-  ========================================================== */
-
-  function openStatusConfirmation(
+  function openConfirmation(
     orderId: number,
-    status: OrderStatus,
+    nextStatus: OrderStatus,
   ) {
     setError("");
     setSuccess("");
 
     setConfirmingOrderId(orderId);
-    setPendingStatus(status);
+    setPendingStatus(nextStatus);
   }
 
-  /* ==========================================================
-     CLOSE CONFIRMATION
-  ========================================================== */
 
-  function closeStatusConfirmation() {
-    if (
-      updatingOrderId !== null
-    ) {
+  function closeConfirmation() {
+    if (updatingId !== null) {
       return;
     }
 
@@ -391,11 +340,8 @@ export default function StaffOrders() {
     setPendingStatus(null);
   }
 
-  /* ==========================================================
-     UPDATE STATUS
-  ========================================================== */
 
-  async function handleStatusUpdate() {
+  async function confirmStatusChange() {
     if (
       confirmingOrderId === null ||
       pendingStatus === null
@@ -403,46 +349,8 @@ export default function StaffOrders() {
       return;
     }
 
-    const order =
-      orders.find(
-        (item) =>
-          item.id ===
-          confirmingOrderId,
-      );
-
-    if (!order) {
-      setError(
-        "Order not found.",
-      );
-      closeStatusConfirmation();
-      return;
-    }
-
-    const currentStatus =
-      normalizeStatus(
-        order.status,
-      );
-
-    const allowed =
-      getAllowedActions(
-        currentStatus,
-      );
-
-    if (
-      !allowed.includes(
-        pendingStatus,
-      )
-    ) {
-      setError(
-        `Invalid transition from "${currentStatus}" to "${pendingStatus}".`,
-      );
-
-      closeStatusConfirmation();
-      return;
-    }
-
     try {
-      setUpdatingOrderId(
+      setUpdatingId(
         confirmingOrderId,
       );
 
@@ -456,26 +364,18 @@ export default function StaffOrders() {
         );
 
       setOrders((current) =>
-        current.map(
-          (currentOrder) =>
-            currentOrder.id ===
-            updated.id
-              ? updated
-              : currentOrder,
+        current.map((order) =>
+          order.id === updated.id
+            ? updated
+            : order,
         ),
       );
-
-      const statusLabel =
-        pendingStatus
-          .charAt(0)
-          .toUpperCase() +
-        pendingStatus.slice(1);
 
       setConfirmingOrderId(null);
       setPendingStatus(null);
 
       setSuccess(
-        `Order #${updated.id} is now ${statusLabel}.`,
+        `Order #${updated.id} updated to ${pendingStatus}.`,
       );
 
       window.setTimeout(() => {
@@ -483,7 +383,7 @@ export default function StaffOrders() {
       }, 2500);
     } catch (err: any) {
       console.error(
-        "Staff order status error:",
+        "Staff status update error:",
         err,
       );
 
@@ -493,13 +393,44 @@ export default function StaffOrders() {
           "Unable to update order status.",
       );
     } finally {
-      setUpdatingOrderId(null);
+      setUpdatingId(null);
     }
   }
 
-  /* ==========================================================
-     LOADING
-  ========================================================== */
+
+  const selectedOrder =
+    confirmingOrderId !== null
+      ? orders.find(
+          (order) =>
+            order.id ===
+            confirmingOrderId,
+        ) ?? null
+      : null;
+
+
+  useEffect(() => {
+    if (
+      confirmingOrderId !== null &&
+      pendingStatus !== null
+    ) {
+      const previousOverflow =
+        document.body.style.overflow;
+
+      document.body.style.overflow =
+        "hidden";
+
+      return () => {
+        document.body.style.overflow =
+          previousOverflow;
+      };
+    }
+
+    return undefined;
+  }, [
+    confirmingOrderId,
+    pendingStatus,
+  ]);
+
 
   if (loading) {
     return (
@@ -515,31 +446,14 @@ export default function StaffOrders() {
     );
   }
 
-  /* ==========================================================
-     CURRENT MODAL ORDER
-  ========================================================== */
-
-  const selectedOrder =
-    confirmingOrderId !== null
-      ? orders.find(
-          (order) =>
-            order.id ===
-            confirmingOrderId,
-        ) ?? null
-      : null;
-
-  /* ==========================================================
-     MAIN
-  ========================================================== */
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
 
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
+      {/* HEADER */}
 
       <header className="border-b border-[#24113f] bg-[#32145f]">
+
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
 
           <div className="flex items-center gap-4">
@@ -549,14 +463,13 @@ export default function StaffOrders() {
               onClick={() =>
                 navigate("/staff")
               }
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white transition hover:bg-white/20"
-              title="Back to staff dashboard"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white hover:bg-white/20"
             >
               <ArrowLeft size={18} />
             </button>
 
             <div>
-              <p className="text-sm font-medium text-purple-200">
+              <p className="text-sm text-purple-200">
                 Staff Portal
               </p>
 
@@ -565,50 +478,77 @@ export default function StaffOrders() {
               </h1>
 
               <p className="mt-1 text-sm text-purple-200">
-                Review customer orders and update their status.
+                Process customer orders and update statuses.
               </p>
             </div>
 
           </div>
 
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 self-start rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
-          >
-            <RefreshCw
-              size={17}
-              className={
-                refreshing
-                  ? "animate-spin"
-                  : ""
-              }
-            />
 
-            {refreshing
-              ? "Refreshing..."
-              : "Refresh"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+
+            <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-xs font-semibold text-white">
+
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  liveConnected
+                    ? "animate-pulse bg-green-400"
+                    : "bg-yellow-300"
+                }`}
+              />
+
+              {liveConnected
+                ? "Live"
+                : "Connecting..."}
+
+            </div>
+
+
+            <button
+              type="button"
+              onClick={() =>
+                loadOrders(false)
+              }
+              disabled={refreshing}
+              className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] hover:bg-purple-50 disabled:opacity-50"
+            >
+
+              <RefreshCw
+                size={17}
+                className={
+                  refreshing
+                    ? "animate-spin"
+                    : ""
+                }
+              />
+
+              {refreshing
+                ? "Refreshing..."
+                : "Refresh"}
+
+            </button>
+
+          </div>
 
         </div>
+
       </header>
+
 
       <main className="mx-auto max-w-7xl px-6 py-10">
 
-        {/* ====================================================
-            ERROR
-        ==================================================== */}
+        {/* ERROR */}
 
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
 
             <AlertCircle
-              size={20}
-              className="mt-0.5 shrink-0"
+              size={19}
+              className="mt-0.5"
             />
 
             <div className="flex-1">
+
               <p className="font-semibold">
                 Something went wrong
               </p>
@@ -616,31 +556,20 @@ export default function StaffOrders() {
               <p className="mt-1">
                 {error}
               </p>
-            </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setError("")
-              }
-              className="text-red-400 hover:text-red-600"
-            >
-              <X size={18} />
-            </button>
+            </div>
 
           </div>
         )}
 
-        {/* ====================================================
-            SUCCESS
-        ==================================================== */}
+
+        {/* SUCCESS */}
 
         {success && (
-          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
+          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
 
             <CheckCircle2
-              size={20}
-              className="mt-0.5 shrink-0"
+              size={19}
             />
 
             <p className="font-semibold">
@@ -650,9 +579,8 @@ export default function StaffOrders() {
           </div>
         )}
 
-        {/* ====================================================
-            SUMMARY
-        ==================================================== */}
+
+        {/* STATS */}
 
         <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
 
@@ -708,9 +636,8 @@ export default function StaffOrders() {
 
         </section>
 
-        {/* ====================================================
-            FILTERS
-        ==================================================== */}
+
+        {/* FILTERS */}
 
         <section className="mb-8 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
 
@@ -732,22 +659,20 @@ export default function StaffOrders() {
                   )
                 }
                 placeholder="Search Order ID or Customer ID..."
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-purple-300 focus:bg-white focus:ring-2 focus:ring-purple-100"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-purple-300 focus:bg-white focus:ring-2 focus:ring-purple-100"
               />
 
             </div>
+
 
             <div className="flex flex-wrap gap-2">
 
               <FilterButton
                 active={
-                  statusFilter ===
-                  "all"
+                  filter === "all"
                 }
                 onClick={() =>
-                  setStatusFilter(
-                    "all",
-                  )
+                  setFilter("all")
                 }
               >
                 All
@@ -758,11 +683,11 @@ export default function StaffOrders() {
 
               <FilterButton
                 active={
-                  statusFilter ===
+                  filter ===
                   "pending"
                 }
                 onClick={() =>
-                  setStatusFilter(
+                  setFilter(
                     "pending",
                   )
                 }
@@ -775,11 +700,11 @@ export default function StaffOrders() {
 
               <FilterButton
                 active={
-                  statusFilter ===
+                  filter ===
                   "confirmed"
                 }
                 onClick={() =>
-                  setStatusFilter(
+                  setFilter(
                     "confirmed",
                   )
                 }
@@ -792,11 +717,11 @@ export default function StaffOrders() {
 
               <FilterButton
                 active={
-                  statusFilter ===
+                  filter ===
                   "completed"
                 }
                 onClick={() =>
-                  setStatusFilter(
+                  setFilter(
                     "completed",
                   )
                 }
@@ -809,11 +734,11 @@ export default function StaffOrders() {
 
               <FilterButton
                 active={
-                  statusFilter ===
+                  filter ===
                   "cancelled"
                 }
                 onClick={() =>
-                  setStatusFilter(
+                  setFilter(
                     "cancelled",
                   )
                 }
@@ -830,36 +755,29 @@ export default function StaffOrders() {
 
         </section>
 
-        {/* ====================================================
-            ORDER TABLE
-        ==================================================== */}
+
+        {/* TABLE */}
 
         <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
 
-          <div className="flex flex-col gap-2 border-b border-gray-100 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="border-b border-gray-100 p-6">
 
-            <div>
-              <h2 className="font-bold text-[#24113f]">
-                Customer Orders
-              </h2>
+            <h2 className="font-bold text-[#24113f]">
+              Customer Orders
+            </h2>
 
-              <p className="mt-1 text-sm text-gray-400">
-                {filteredOrders.length}{" "}
-                order
-                {filteredOrders.length !==
-                1
-                  ? "s"
-                  : ""}{" "}
-                shown
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <span className="h-2 w-2 rounded-full bg-green-500" />
-              Staff actions follow valid order transitions
-            </div>
+            <p className="mt-1 text-sm text-gray-400">
+              {filteredOrders.length}{" "}
+              order
+              {filteredOrders.length !==
+              1
+                ? "s"
+                : ""}{" "}
+              shown
+            </p>
 
           </div>
+
 
           {filteredOrders.length ===
           0 ? (
@@ -888,6 +806,7 @@ export default function StaffOrders() {
               <table className="w-full min-w-[1050px]">
 
                 <thead>
+
                   <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-400">
 
                     <th className="px-6 py-4">
@@ -919,13 +838,14 @@ export default function StaffOrders() {
                     </th>
 
                   </tr>
+
                 </thead>
+
 
                 <tbody className="divide-y divide-gray-100">
 
                   {filteredOrders.map(
                     (order) => {
-
                       const status =
                         normalizeStatus(
                           order.status,
@@ -939,22 +859,18 @@ export default function StaffOrders() {
                       const itemCount =
                         order.items?.reduce(
                           (
-                            sum,
+                            total,
                             item,
                           ) =>
-                            sum +
+                            total +
                             item.quantity,
                           0,
                         ) ?? 0;
 
-                      const isUpdating =
-                        updatingOrderId ===
-                        order.id;
-
                       return (
                         <tr
                           key={order.id}
-                          className="transition hover:bg-gray-50"
+                          className="hover:bg-gray-50"
                         >
 
                           <td className="px-6 py-5">
@@ -970,9 +886,10 @@ export default function StaffOrders() {
 
                           </td>
 
+
                           <td className="px-6 py-5">
 
-                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
+                            <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
                               Customer #
                               {
                                 order.user_id
@@ -981,36 +898,22 @@ export default function StaffOrders() {
 
                           </td>
 
-                          <td className="px-6 py-5">
 
-                            <span className="font-semibold text-gray-700">
-                              {
-                                itemCount
-                              }
-                            </span>
-
-                            <span className="ml-1 text-xs text-gray-400">
-                              {itemCount ===
-                              1
-                                ? "item"
-                                : "items"}
-                            </span>
-
+                          <td className="px-6 py-5 text-sm text-gray-500">
+                            {itemCount}
                           </td>
 
-                          <td className="px-6 py-5">
 
-                            <span className="font-bold text-[#32145f]">
-                              ₹
-                              {Number(
-                                order.total ||
-                                  0,
-                              ).toFixed(
-                                2,
-                              )}
-                            </span>
-
+                          <td className="px-6 py-5 font-bold text-[#32145f]">
+                            ₹
+                            {Number(
+                              order.total ||
+                                0,
+                            ).toFixed(
+                              2,
+                            )}
                           </td>
+
 
                           <td className="px-6 py-5">
 
@@ -1022,21 +925,13 @@ export default function StaffOrders() {
 
                           </td>
 
-                          <td className="px-6 py-5">
 
-                            <p className="text-sm text-gray-500">
-                              {formatDate(
-                                order.created_at,
-                              )}
-                            </p>
-
-                            <p className="mt-1 text-xs text-gray-400">
-                              {formatTime(
-                                order.created_at,
-                              )}
-                            </p>
-
+                          <td className="px-6 py-5 text-sm text-gray-400">
+                            {formatDateTime(
+                              order.created_at,
+                            )}
                           </td>
+
 
                           <td className="px-6 py-5">
 
@@ -1054,76 +949,69 @@ export default function StaffOrders() {
                                 {actions.includes(
                                   "confirmed",
                                 ) && (
-                                  <ActionButton
-                                    label="Confirm"
-                                    icon={
-                                      <Check
-                                        size={
-                                          14
-                                        }
-                                      />
-                                    }
+                                  <button
+                                    type="button"
                                     onClick={() =>
-                                      openStatusConfirmation(
+                                      openConfirmation(
                                         order.id,
                                         "confirmed",
                                       )
                                     }
-                                    disabled={
-                                      isUpdating
-                                    }
-                                    className="bg-[#32145f] text-white hover:bg-[#421b7a]"
-                                  />
+                                    className="flex items-center gap-1.5 rounded-xl bg-[#32145f] px-3 py-2 text-xs font-semibold text-white hover:bg-[#421b7a]"
+                                  >
+                                    <Check
+                                      size={
+                                        14
+                                      }
+                                    />
+                                    Confirm
+                                  </button>
                                 )}
+
 
                                 {actions.includes(
                                   "cancelled",
                                 ) && (
-                                  <ActionButton
-                                    label="Cancel"
-                                    icon={
-                                      <XCircle
-                                        size={
-                                          14
-                                        }
-                                      />
-                                    }
+                                  <button
+                                    type="button"
                                     onClick={() =>
-                                      openStatusConfirmation(
+                                      openConfirmation(
                                         order.id,
                                         "cancelled",
                                       )
                                     }
-                                    disabled={
-                                      isUpdating
-                                    }
-                                    className="border border-red-100 bg-red-50 text-red-600 hover:bg-red-100"
-                                  />
+                                    className="flex items-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100"
+                                  >
+                                    <XCircle
+                                      size={
+                                        14
+                                      }
+                                    />
+                                    Cancel
+                                  </button>
                                 )}
+
 
                                 {actions.includes(
                                   "completed",
                                 ) && (
-                                  <ActionButton
-                                    label="Complete"
-                                    icon={
-                                      <CheckCircle2
-                                        size={
-                                          14
-                                        }
-                                      />
-                                    }
+                                  <button
+                                    type="button"
                                     onClick={() =>
-                                      openStatusConfirmation(
+                                      openConfirmation(
                                         order.id,
                                         "completed",
                                       )
                                     }
-                                    disabled={
-                                      isUpdating
-                                    }
-                                    className="bg-green-600 text-white hover:bg-green-700"
-                                  />
+                                    className="flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                                  >
+                                    <CheckCircle2
+                                      size={
+                                        14
+                                      }
+                                    />
+                                    Complete
+                                  </button>
                                 )}
 
                               </div>
@@ -1147,9 +1035,6 @@ export default function StaffOrders() {
 
         </section>
 
-        {/* ====================================================
-            BACK
-        ==================================================== */}
 
         <div className="mt-8 flex flex-wrap gap-3">
 
@@ -1158,11 +1043,9 @@ export default function StaffOrders() {
             onClick={() =>
               navigate("/staff")
             }
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 hover:border-purple-100 hover:text-[#32145f]"
           >
-            <ArrowLeft
-              size={17}
-            />
+            <ArrowLeft size={17} />
             Staff Dashboard
           </button>
 
@@ -1173,17 +1056,18 @@ export default function StaffOrders() {
                 "/staff/inventory",
               )
             }
-            className="rounded-xl border border-purple-100 bg-purple-50 px-5 py-3 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
+            className="rounded-xl border border-purple-100 bg-purple-50 px-5 py-3 text-sm font-semibold text-[#32145f] hover:bg-purple-100"
           >
-            Manage Inventory
+            Inventory
           </button>
 
         </div>
 
       </main>
 
+
       {/* ======================================================
-          CONFIRMATION MODAL
+          FIXED CONFIRMATION MODAL
           RENDERED DIRECTLY INTO BODY
       ====================================================== */}
 
@@ -1197,7 +1081,7 @@ export default function StaffOrders() {
                 event.target ===
                 event.currentTarget
               ) {
-                closeStatusConfirmation();
+                closeConfirmation();
               }
             }}
           >
@@ -1205,13 +1089,10 @@ export default function StaffOrders() {
             <div
               role="dialog"
               aria-modal="true"
-              aria-labelledby="staff-order-modal-title"
-              className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
+              className="w-full max-w-md rounded-3xl bg-white shadow-2xl"
             >
 
-              {/* MODAL HEADER */}
-
-              <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-6">
+              <div className="flex items-start justify-between border-b border-gray-100 p-6">
 
                 <div>
 
@@ -1219,10 +1100,7 @@ export default function StaffOrders() {
                     Order Action
                   </p>
 
-                  <h2
-                    id="staff-order-modal-title"
-                    className="mt-1 text-xl font-bold text-[#24113f]"
-                  >
+                  <h2 className="mt-1 text-xl font-bold text-[#24113f]">
                     Update Order #
                     {
                       confirmingOrderId
@@ -1234,27 +1112,25 @@ export default function StaffOrders() {
                 <button
                   type="button"
                   onClick={
-                    closeStatusConfirmation
+                    closeConfirmation
                   }
                   disabled={
-                    updatingOrderId !==
-                    null
+                    updatingId !== null
                   }
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50"
-                  title="Close"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
                 >
                   <X size={18} />
                 </button>
 
               </div>
 
-              {/* MODAL BODY */}
 
               <div className="p-6">
 
                 <p className="text-sm leading-6 text-gray-500">
-                  Are you sure you want to change this order to:
+                  Confirm changing this order status to:
                 </p>
+
 
                 <div
                   className={`mt-4 rounded-2xl border p-4 ${
@@ -1268,7 +1144,7 @@ export default function StaffOrders() {
                   }`}
                 >
 
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between">
 
                     <div>
 
@@ -1290,9 +1166,9 @@ export default function StaffOrders() {
                         <p className="mt-1 text-xs text-gray-500">
                           Current status:{" "}
                           <span className="font-semibold capitalize">
-                            {normalizeStatus(
-                              selectedOrder.status,
-                            )}
+                            {
+                              selectedOrder.status
+                            }
                           </span>
                         </p>
                       )}
@@ -1300,21 +1176,20 @@ export default function StaffOrders() {
                     </div>
 
                     {pendingStatus ===
-                    "completed" ? (
-                      <CheckCircle2
-                        size={24}
-                        className="text-green-600"
-                      />
-                    ) : pendingStatus ===
-                      "cancelled" ? (
+                    "cancelled" ? (
                       <XCircle
-                        size={24}
+                        size={25}
                         className="text-red-500"
                       />
                     ) : (
                       <CheckCircle2
-                        size={24}
-                        className="text-[#32145f]"
+                        size={25}
+                        className={
+                          pendingStatus ===
+                          "completed"
+                            ? "text-green-600"
+                            : "text-[#32145f]"
+                        }
                       />
                     )}
 
@@ -1322,27 +1197,18 @@ export default function StaffOrders() {
 
                 </div>
 
-                {pendingStatus ===
-                  "cancelled" && (
-                  <p className="mt-4 rounded-xl bg-red-50 p-3 text-xs text-red-600">
-                    This will cancel the pending order.
-                  </p>
-                )}
-
-                {/* MODAL ACTIONS */}
 
                 <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
 
                   <button
                     type="button"
                     onClick={
-                      closeStatusConfirmation
+                      closeConfirmation
                     }
                     disabled={
-                      updatingOrderId !==
-                      null
+                      updatingId !== null
                     }
-                    className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1350,13 +1216,12 @@ export default function StaffOrders() {
                   <button
                     type="button"
                     onClick={
-                      handleStatusUpdate
+                      confirmStatusChange
                     }
                     disabled={
-                      updatingOrderId !==
-                      null
+                      updatingId !== null
                     }
-                    className={`flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 ${
                       pendingStatus ===
                       "cancelled"
                         ? "bg-red-600 hover:bg-red-700"
@@ -1367,13 +1232,14 @@ export default function StaffOrders() {
                     }`}
                   >
 
-                    {updatingOrderId !==
+                    {updatingId !==
                     null ? (
                       <>
                         <Loader2
                           size={17}
                           className="animate-spin"
                         />
+
                         Updating...
                       </>
                     ) : (
@@ -1381,6 +1247,7 @@ export default function StaffOrders() {
                         <Check
                           size={17}
                         />
+
                         Confirm
                       </>
                     )}
@@ -1400,6 +1267,7 @@ export default function StaffOrders() {
     </div>
   );
 }
+
 
 /* ============================================================
    ORDER STAT
@@ -1437,6 +1305,7 @@ function OrderStat({
   );
 }
 
+
 /* ============================================================
    FILTER BUTTON
 ============================================================ */
@@ -1454,7 +1323,7 @@ function FilterButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+      className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition ${
         active
           ? "bg-[#32145f] text-white"
           : "border border-gray-200 bg-white text-gray-500 hover:border-purple-100 hover:text-[#32145f]"
@@ -1465,35 +1334,6 @@ function FilterButton({
   );
 }
 
-/* ============================================================
-   ACTION BUTTON
-============================================================ */
-
-function ActionButton({
-  label,
-  icon,
-  onClick,
-  disabled,
-  className,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  className: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
 
 /* ============================================================
    ORDER STATUS
