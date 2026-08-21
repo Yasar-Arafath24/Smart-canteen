@@ -23,6 +23,9 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     ]
 
+    # ========================================================
+    # EMAIL
+    # ========================================================
 
     MAIL_HOST: str = "localhost"
     MAIL_PORT: int = 1025
@@ -32,6 +35,14 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str = "Smart Canteen"
     MAIL_STARTTLS: bool = False
     MAIL_SSL_TLS: bool = False
+
+    # ========================================================
+    # RAZORPAY
+    # ========================================================
+
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

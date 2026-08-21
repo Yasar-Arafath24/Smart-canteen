@@ -24,14 +24,20 @@ class Payment(Base):
     )
 
     order_id: Mapped[int] = mapped_column(
-        ForeignKey("orders.id", ondelete="CASCADE"),
+        ForeignKey(
+            "orders.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         unique=True,
         index=True,
     )
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )
@@ -45,14 +51,40 @@ class Payment(Base):
         String(20),
         nullable=False,
         default="pending",
+        index=True,
     )
 
     payment_method: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
-        default="simulated",
+        default="razorpay",
     )
 
+    # Razorpay order created on the backend
+    razorpay_order_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    # Razorpay payment returned by Checkout
+    razorpay_payment_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    # Signature returned by Checkout
+    razorpay_signature: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    # Kept for compatibility with your existing frontend/API.
+    # For successful Razorpay payments this stores the
+    # Razorpay payment ID.
     transaction_id: Mapped[Optional[str]] = mapped_column(
         String(100),
         nullable=True,
