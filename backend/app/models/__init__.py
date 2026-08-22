@@ -6,6 +6,7 @@ from app.models.payment import Payment
 from app.models.notification import Notification
 from app.models.staff_attendance import StaffAttendance
 from app.models.activity_log import ActivityLog
+from app.models.razorpay_webhook import RazorpayWebhookEvent
 
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "Notification",
     "StaffAttendance",
     "ActivityLog",
+    "RazorpayWebhookEvent",
 ]
