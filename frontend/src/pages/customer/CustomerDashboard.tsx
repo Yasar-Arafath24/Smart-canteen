@@ -1,24 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
 import {
-  Bell,
-  Search,
-  ShoppingCart,
-  LogOut,
-  LayoutDashboard,
-  ClipboardList,
-  User,
-  Utensils,
-  Plus,
-  Minus,
   Check,
   FolderTree,
+  Minus,
+  Plus,
+  Search,
+  ShoppingCart,
+  Utensils,
 } from "lucide-react";
+
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
-import { getMenuItems, type MenuItem } from "../../api/menu";
-import { logout } from "../../api/auth";
+import {
+  getMenuItems,
+  type MenuItem,
+} from "../../api/menu";
+
 import { useCart } from "../../context/CartContext";
+
 import { api } from "../../api/client";
+
 
 /* ============================================================
    TYPES
@@ -30,6 +36,7 @@ interface Category {
   description: string | null;
   created_at?: string;
 }
+
 
 /* ============================================================
    CUSTOMER DASHBOARD
@@ -46,6 +53,7 @@ export default function CustomerDashboard() {
     totalItems,
   } = useCart();
 
+
   /* ==========================================================
      DATA
   ========================================================== */
@@ -56,6 +64,7 @@ export default function CustomerDashboard() {
   const [categories, setCategories] =
     useState<Category[]>([]);
 
+
   /* ==========================================================
      FILTERS
   ========================================================== */
@@ -63,8 +72,11 @@ export default function CustomerDashboard() {
   const [search, setSearch] =
     useState("");
 
-  const [activeCategory, setActiveCategory] =
-    useState<number | null>(null);
+  const [
+    activeCategory,
+    setActiveCategory,
+  ] = useState<number | null>(null);
+
 
   /* ==========================================================
      LOADING
@@ -73,8 +85,11 @@ export default function CustomerDashboard() {
   const [loading, setLoading] =
     useState(true);
 
-  const [categoriesLoading, setCategoriesLoading] =
-    useState(true);
+  const [
+    categoriesLoading,
+    setCategoriesLoading,
+  ] = useState(true);
+
 
   /* ==========================================================
      ERROR
@@ -83,15 +98,11 @@ export default function CustomerDashboard() {
   const [error, setError] =
     useState("");
 
-  const [categoryError, setCategoryError] =
-    useState("");
+  const [
+    categoryError,
+    setCategoryError,
+  ] = useState("");
 
-  /* ==========================================================
-     NAV
-  ========================================================== */
-
-  const [activeNav, setActiveNav] =
-    useState("Dashboard");
 
   /* ==========================================================
      LOAD MENU + CATEGORIES
@@ -111,12 +122,18 @@ export default function CustomerDashboard() {
           categoryResponse,
         ] = await Promise.all([
           getMenuItems(),
+
           api.get<Category[]>(
             "/categories/",
           ),
         ]);
 
-        setMenuItems(menuData);
+        setMenuItems(
+          Array.isArray(menuData)
+            ? menuData
+            : [],
+        );
+
         setCategories(
           Array.isArray(
             categoryResponse.data,
@@ -131,7 +148,8 @@ export default function CustomerDashboard() {
         );
 
         setError(
-          err?.response?.data?.detail ||
+          err?.response?.data
+            ?.detail ||
             "Unable to load the menu.",
         );
 
@@ -147,38 +165,47 @@ export default function CustomerDashboard() {
     loadData();
   }, []);
 
+
   /* ==========================================================
      FILTERED MENU
   ========================================================== */
 
-  const filteredItems = useMemo(() => {
-    const query =
-      search.toLowerCase().trim();
-
-    return menuItems.filter((item) => {
-      const matchesSearch =
-        !query ||
-        item.name
+  const filteredItems =
+    useMemo(() => {
+      const query =
+        search
           .toLowerCase()
-          .includes(query) ||
-        item.description
-          ?.toLowerCase()
-          .includes(query);
+          .trim();
 
-      const matchesCategory =
-        activeCategory === null ||
-        item.category_id === activeCategory;
+      return menuItems.filter(
+        (item) => {
+          const matchesSearch =
+            !query ||
+            item.name
+              .toLowerCase()
+              .includes(query) ||
+            item.description
+              ?.toLowerCase()
+              .includes(query);
 
-      return (
-        matchesSearch &&
-        matchesCategory
+          const matchesCategory =
+            activeCategory ===
+              null ||
+            item.category_id ===
+              activeCategory;
+
+          return (
+            matchesSearch &&
+            matchesCategory
+          );
+        },
       );
-    });
-  }, [
-    menuItems,
-    search,
-    activeCategory,
-  ]);
+    }, [
+      menuItems,
+      search,
+      activeCategory,
+    ]);
+
 
   /* ==========================================================
      CATEGORY COUNTS
@@ -191,23 +218,20 @@ export default function CustomerDashboard() {
         number
       > = {};
 
-      menuItems.forEach((item) => {
-        counts[item.category_id] =
-          (counts[item.category_id] ||
-            0) + 1;
-      });
+      menuItems.forEach(
+        (item) => {
+          counts[
+            item.category_id
+          ] =
+            (counts[
+              item.category_id
+            ] || 0) + 1;
+        },
+      );
 
       return counts;
     }, [menuItems]);
 
-  /* ==========================================================
-     LOGOUT
-  ========================================================== */
-
-  function handleLogout() {
-    logout();
-    navigate("/login");
-  }
 
   /* ==========================================================
      NAVIGATION
@@ -216,8 +240,6 @@ export default function CustomerDashboard() {
   function handleNavigation(
     label: string,
   ) {
-    setActiveNav(label);
-
     if (
       label === "Dashboard" ||
       label === "Menu"
@@ -226,10 +248,12 @@ export default function CustomerDashboard() {
         window.location.pathname !==
         "/dashboard"
       ) {
-        navigate("/dashboard");
+        navigate(
+          "/dashboard",
+        );
       }
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         window.scrollTo({
           top: 0,
           behavior: "smooth",
@@ -244,7 +268,9 @@ export default function CustomerDashboard() {
       return;
     }
 
-    if (label === "Notifications") {
+    if (
+      label === "Notifications"
+    ) {
       navigate("/notifications");
       return;
     }
@@ -254,6 +280,7 @@ export default function CustomerDashboard() {
       return;
     }
   }
+
 
   /* ==========================================================
      CART QUANTITY
@@ -269,8 +296,11 @@ export default function CustomerDashboard() {
           itemId,
       );
 
-    return cartItem?.quantity ?? 0;
+    return (
+      cartItem?.quantity ?? 0
+    );
   }
+
 
   /* ==========================================================
      CATEGORY SELECTION
@@ -279,20 +309,25 @@ export default function CustomerDashboard() {
   function handleCategoryChange(
     categoryId: number | null,
   ) {
-    setActiveCategory(categoryId);
+    setActiveCategory(
+      categoryId,
+    );
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       const menuSection =
         document.getElementById(
           "customer-menu",
         );
 
-      menuSection?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      menuSection?.scrollIntoView(
+        {
+          behavior: "smooth",
+          block: "start",
+        },
+      );
     }, 50);
   }
+
 
   /* ==========================================================
      RESET FILTERS
@@ -303,6 +338,7 @@ export default function CustomerDashboard() {
     setActiveCategory(null);
   }
 
+
   /* ==========================================================
      RENDER
   ========================================================== */
@@ -310,660 +346,480 @@ export default function CustomerDashboard() {
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
 
-      {/* ======================================================
-          SIDEBAR
-      ====================================================== */}
+      {/* ====================================================
+          CUSTOMER PAGE HEADER
+      ==================================================== */}
 
-      <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-gray-100 bg-white lg:flex lg:flex-col">
+      <header className="sticky top-16 z-20 border-b border-[#24113f] bg-[#32145f]/95 px-6 py-5 backdrop-blur md:px-10">
 
-        {/* LOGO */}
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
 
-        <div className="flex h-20 items-center px-7">
+          <div>
 
-          <button
-            type="button"
-            onClick={() =>
-              handleNavigation(
-                "Dashboard",
-              )
-            }
-            className="text-left"
-          >
-
-            <h1 className="text-xl font-bold text-[#32145f]">
-              SmartCanteen
-            </h1>
-
-            <p className="text-xs text-gray-400">
-              Food ordering
+            <p className="text-sm text-purple-200">
+              Customer Dashboard
             </p>
 
-          </button>
+            <h2 className="mt-1 text-2xl font-bold text-white">
+              What would you like to eat?
+            </h2>
+
+          </div>
+
+
+          <div className="flex items-center gap-3">
+
+            {/* Notifications */}
+
+            <button
+              type="button"
+              onClick={() =>
+                handleNavigation(
+                  "Notifications",
+                )
+              }
+              className="rounded-xl border border-white/25 bg-white/10 p-3 text-purple-100 transition hover:bg-white/20 hover:text-white"
+              title="Notifications"
+            >
+              <span className="relative block">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-5 w-5"
+                >
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                  <path d="M10 21h4" />
+                </svg>
+              </span>
+            </button>
+
+
+            {/* Cart */}
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/cart")
+              }
+              className="relative rounded-xl border border-white/25 bg-white/10 p-3 text-purple-100 transition hover:bg-white/20 hover:text-white"
+              title="Cart"
+            >
+
+              <ShoppingCart
+                size={20}
+              />
+
+              {totalItems > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[#32145f]">
+                  {totalItems > 99
+                    ? "99+"
+                    : totalItems}
+                </span>
+              )}
+
+            </button>
+
+          </div>
 
         </div>
 
-        {/* NAVIGATION */}
+      </header>
 
-        <nav className="flex-1 px-4 py-6">
 
-          <NavItem
-            icon={
-              <LayoutDashboard
-                size={19}
-              />
-            }
-            label="Dashboard"
-            active={
-              activeNav ===
-              "Dashboard"
-            }
-            onClick={() =>
-              handleNavigation(
-                "Dashboard",
-              )
-            }
+      {/* ====================================================
+          CONTENT
+      ==================================================== */}
+
+      <main className="mx-auto max-w-7xl px-6 py-8 pb-12 md:px-10">
+
+        {/* ==================================================
+            SEARCH
+        ================================================== */}
+
+        <div className="relative max-w-xl">
+
+          <Search
+            size={19}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
           />
 
-          <NavItem
-            icon={
-              <Utensils size={19} />
-            }
-            label="Menu"
-            active={
-              activeNav === "Menu"
-            }
-            onClick={() =>
-              handleNavigation(
-                "Menu",
+          <input
+            type="text"
+            placeholder="Search meals..."
+            value={search}
+            onChange={(event) =>
+              setSearch(
+                event.target.value,
               )
             }
+            className="w-full rounded-2xl border border-gray-200 bg-white py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-[#32145f] focus:ring-4 focus:ring-purple-100"
           />
-
-          <NavItem
-            icon={
-              <ClipboardList
-                size={19}
-              />
-            }
-            label="My Orders"
-            active={
-              activeNav ===
-              "My Orders"
-            }
-            onClick={() =>
-              handleNavigation(
-                "My Orders",
-              )
-            }
-          />
-
-          <NavItem
-            icon={
-              <Bell size={19} />
-            }
-            label="Notifications"
-            active={
-              activeNav ===
-              "Notifications"
-            }
-            onClick={() =>
-              handleNavigation(
-                "Notifications",
-              )
-            }
-          />
-
-          <NavItem
-            icon={
-              <User size={19} />
-            }
-            label="Profile"
-            active={
-              activeNav === "Profile"
-            }
-            onClick={() =>
-              handleNavigation(
-                "Profile",
-              )
-            }
-          />
-
-        </nav>
-
-        {/* LOGOUT */}
-
-        <div className="border-t border-gray-100 p-4">
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-500 transition hover:bg-gray-50 hover:text-[#32145f]"
-          >
-
-            <LogOut size={19} />
-
-            Logout
-
-          </button>
 
         </div>
 
-      </aside>
 
-      {/* ======================================================
-          MAIN
-      ====================================================== */}
+        {/* ==================================================
+            CATEGORIES
+        ================================================== */}
 
-      <main className="lg:ml-64">
+        <section className="mt-8">
 
-        {/* ====================================================
-            HEADER
-        ==================================================== */}
-
-        <header className="sticky top-0 z-20 border-b border-[#24113f] bg-[#32145f]/95 px-6 py-5 backdrop-blur md:px-10">
-
-          <div className="flex items-center justify-between gap-6">
+          <div className="mb-4 flex items-center justify-between gap-4">
 
             <div>
 
-              <p className="text-sm text-purple-200">
-                Customer Dashboard
+              <p className="text-sm font-medium text-[#32145f]">
+                Browse by category
               </p>
 
-              <h2 className="mt-1 text-2xl font-bold text-white">
-                What would you like to eat?
-              </h2>
+              <h3 className="mt-1 text-xl font-bold text-[#24113f]">
+                Categories
+              </h3>
 
             </div>
 
-            <div className="flex items-center gap-3">
-
-              {/* NOTIFICATIONS */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleNavigation(
-                    "Notifications",
-                  )
-                }
-                className="relative rounded-xl border border-white/25 bg-white/10 p-3 text-purple-100 transition hover:bg-white/20 hover:text-white"
-                title="Notifications"
-              >
-                <Bell size={20} />
-              </button>
-
-              {/* CART */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/cart")
-                }
-                className="relative rounded-xl border border-white/25 bg-white/10 p-3 text-purple-100 transition hover:bg-white/20 hover:text-white"
-                title="Cart"
-              >
-
-                <ShoppingCart
-                  size={20}
-                />
-
-                {totalItems > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[#32145f]">
-                    {totalItems >
-                    99
-                      ? "99+"
-                      : totalItems}
-                  </span>
-                )}
-
-              </button>
-
-            </div>
-
-          </div>
-
-        </header>
-
-        {/* ====================================================
-            CONTENT
-        ==================================================== */}
-
-        <div className="px-6 py-8 pb-28 md:px-10">
-
-          {/* SEARCH */}
-
-          <div className="relative max-w-xl">
-
-            <Search
-              size={19}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-
-            <input
-              type="text"
-              placeholder="Search meals..."
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value,
-                )
-              }
-              className="w-full rounded-2xl border border-gray-200 bg-white py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-[#32145f] focus:ring-4 focus:ring-purple-100"
-            />
-
-          </div>
-
-          {/* ==================================================
-              CATEGORIES
-          ================================================== */}
-
-          <section className="mt-8">
-
-            <div className="mb-4 flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm font-medium text-[#32145f]">
-                  Browse by category
-                </p>
-
-                <h3 className="mt-1 text-xl font-bold text-[#24113f]">
-                  Categories
-                </h3>
-
-              </div>
-
-              {(search ||
-                activeCategory !==
-                  null) && (
-                <button
-                  type="button"
-                  onClick={
-                    clearFilters
-                  }
-                  className="text-sm font-semibold text-[#32145f] hover:underline"
-                >
-                  Clear filters
-                </button>
-              )}
-
-            </div>
-
-            {/* CATEGORY ERROR */}
-
-            {categoryError &&
-              !categoriesLoading && (
-                <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                  {categoryError}
-                </div>
-              )}
-
-            {/* CATEGORY LOADING */}
-
-            {categoriesLoading ? (
-
-              <div className="flex gap-3 overflow-x-auto pb-2">
-
-                {[1, 2, 3, 4].map(
-                  (item) => (
-                    <div
-                      key={item}
-                      className="h-11 w-28 shrink-0 animate-pulse rounded-xl bg-gray-200"
-                    />
-                  ),
-                )}
-
-              </div>
-
-            ) : (
-
-              <div className="flex gap-3 overflow-x-auto pb-2">
-
-                {/* ALL */}
-
-                <CategoryButton
-                  name="All"
-                  count={menuItems.length}
-                  active={
-                    activeCategory ===
-                    null
-                  }
-                  onClick={() =>
-                    handleCategoryChange(
-                      null,
-                    )
-                  }
-                  icon={
-                    <Utensils
-                      size={17}
-                    />
-                  }
-                />
-
-                {/* CATEGORIES */}
-
-                {categories.map(
-                  (category) => (
-                    <CategoryButton
-                      key={
-                        category.id
-                      }
-                      name={
-                        category.name
-                      }
-                      count={
-                        categoryCounts[
-                          category.id
-                        ] || 0
-                      }
-                      active={
-                        activeCategory ===
-                        category.id
-                      }
-                      onClick={() =>
-                        handleCategoryChange(
-                          category.id,
-                        )
-                      }
-                      icon={
-                        <FolderTree
-                          size={17}
-                        />
-                      }
-                    />
-                  ),
-                )}
-
-              </div>
-
-            )}
-
-          </section>
-
-          {/* ==================================================
-              MENU
-          ================================================== */}
-
-          <section
-            id="customer-menu"
-            className="mt-10 scroll-mt-28"
-          >
-
-            <div className="mb-5 flex items-end justify-between gap-4">
-
-              <div>
-
-                <p className="text-sm font-medium text-[#32145f]">
-                  Available now
-                </p>
-
-                <h3 className="mt-1 text-2xl font-bold text-[#24113f]">
-
-                  {activeCategory ===
-                  null
-                    ? "Today's Menu"
-                    : categories.find(
-                        (category) =>
-                          category.id ===
-                          activeCategory,
-                      )?.name ||
-                      "Today's Menu"}
-
-                </h3>
-
-              </div>
-
-              <span className="shrink-0 text-sm text-gray-400">
-                {filteredItems.length}{" "}
-                {filteredItems.length ===
-                1
-                  ? "item"
-                  : "items"}
-              </span>
-
-            </div>
-
-            {/* ACTIVE FILTER */}
 
             {(search ||
               activeCategory !==
                 null) && (
-              <div className="mb-6 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={
+                  clearFilters
+                }
+                className="shrink-0 text-sm font-semibold text-[#32145f] hover:underline"
+              >
+                Clear filters
+              </button>
+            )}
 
-                {search && (
-                  <span className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600">
-                    Search: "
-                    {search}"
-                  </span>
-                )}
+          </div>
 
-                {activeCategory !==
-                  null && (
-                  <span className="rounded-full border border-purple-100 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-[#32145f]">
-                    Category:{" "}
-                    {categories.find(
+
+          {/* Category error */}
+
+          {categoryError &&
+            !categoriesLoading && (
+              <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {categoryError}
+              </div>
+            )}
+
+
+          {/* Category loading */}
+
+          {categoriesLoading ? (
+
+            <div className="flex gap-3 overflow-x-auto pb-2">
+
+              {[1, 2, 3, 4].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="h-11 w-28 shrink-0 animate-pulse rounded-xl bg-gray-200"
+                  />
+                ),
+              )}
+
+            </div>
+
+          ) : (
+
+            <div className="flex gap-3 overflow-x-auto pb-2">
+
+              <CategoryButton
+                name="All"
+                count={
+                  menuItems.length
+                }
+                active={
+                  activeCategory ===
+                  null
+                }
+                onClick={() =>
+                  handleCategoryChange(
+                    null,
+                  )
+                }
+                icon={
+                  <Utensils
+                    size={17}
+                  />
+                }
+              />
+
+
+              {categories.map(
+                (category) => (
+                  <CategoryButton
+                    key={
+                      category.id
+                    }
+                    name={
+                      category.name
+                    }
+                    count={
+                      categoryCounts[
+                        category.id
+                      ] || 0
+                    }
+                    active={
+                      activeCategory ===
+                      category.id
+                    }
+                    onClick={() =>
+                      handleCategoryChange(
+                        category.id,
+                      )
+                    }
+                    icon={
+                      <FolderTree
+                        size={17}
+                      />
+                    }
+                  />
+                ),
+              )}
+
+            </div>
+
+          )}
+
+        </section>
+
+
+        {/* ==================================================
+            MENU
+        ================================================== */}
+
+        <section
+          id="customer-menu"
+          className="mt-10 scroll-mt-28"
+        >
+
+          <div className="mb-5 flex items-end justify-between gap-4">
+
+            <div>
+
+              <p className="text-sm font-medium text-[#32145f]">
+                Available now
+              </p>
+
+              <h3 className="mt-1 text-2xl font-bold text-[#24113f]">
+
+                {activeCategory ===
+                null
+                  ? "Today's Menu"
+                  : categories.find(
                       (category) =>
                         category.id ===
                         activeCategory,
                     )?.name ||
-                      "Selected"}
-                  </span>
+                    "Today's Menu"}
+
+              </h3>
+
+            </div>
+
+
+            <span className="shrink-0 text-sm text-gray-400">
+
+              {filteredItems.length}{" "}
+
+              {filteredItems.length ===
+              1
+                ? "item"
+                : "items"}
+
+            </span>
+
+          </div>
+
+
+          {/* ==================================================
+              ACTIVE FILTERS
+          ================================================== */}
+
+          {(search ||
+            activeCategory !==
+              null) && (
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+
+              {search && (
+                <span className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600">
+                  Search: "
+                  {search}"
+                </span>
+              )}
+
+
+              {activeCategory !==
+                null && (
+                <span className="rounded-full border border-purple-100 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-[#32145f]">
+                  Category:{" "}
+                  {categories.find(
+                    (category) =>
+                      category.id ===
+                      activeCategory,
+                  )?.name ||
+                    "Selected"}
+                </span>
+              )}
+
+            </div>
+          )}
+
+
+          {/* ==================================================
+              LOADING
+          ================================================== */}
+
+          {loading && (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+
+              {[1, 2, 3].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="overflow-hidden rounded-2xl border border-gray-100 bg-white"
+                  >
+
+                    <div className="h-48 animate-pulse bg-gray-100" />
+
+                    <div className="space-y-3 p-5">
+
+                      <div className="h-5 w-2/3 animate-pulse rounded bg-gray-100" />
+
+                      <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
+
+                      <div className="h-4 w-1/2 animate-pulse rounded bg-gray-100" />
+
+                      <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
+
+                    </div>
+
+                  </div>
+                ),
+              )}
+
+            </div>
+          )}
+
+
+          {/* ==================================================
+              ERROR
+          ================================================== */}
+
+          {!loading &&
+            error && (
+              <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+
+          {/* ==================================================
+              EMPTY
+          ================================================== */}
+
+          {!loading &&
+            !error &&
+            filteredItems.length ===
+              0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white py-20 text-center">
+
+                <Utensils
+                  size={32}
+                  className="mx-auto text-gray-300"
+                />
+
+                <p className="mt-4 font-medium text-gray-600">
+
+                  {search ||
+                  activeCategory !==
+                    null
+                    ? "No meals match your filters"
+                    : "No meals found"}
+
+                </p>
+
+                <p className="mt-1 text-sm text-gray-400">
+
+                  {search ||
+                  activeCategory !==
+                    null
+                    ? "Try another category or search term."
+                    : "The canteen menu is currently empty."}
+
+                </p>
+
+
+                {(search ||
+                  activeCategory !==
+                    null) && (
+                  <button
+                    type="button"
+                    onClick={
+                      clearFilters
+                    }
+                    className="mt-5 rounded-xl bg-[#32145f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
+                  >
+                    Show All Meals
+                  </button>
                 )}
 
               </div>
             )}
 
-            {/* LOADING */}
 
-            {loading && (
+          {/* ==================================================
+              MENU CARDS
+          ================================================== */}
+
+          {!loading &&
+            !error &&
+            filteredItems.length >
+              0 && (
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
 
-                {[1, 2, 3].map(
+                {filteredItems.map(
                   (item) => (
-                    <div
-                      key={item}
-                      className="overflow-hidden rounded-2xl border border-gray-100 bg-white"
-                    >
-
-                      <div className="h-48 animate-pulse bg-gray-100" />
-
-                      <div className="space-y-3 p-5">
-
-                        <div className="h-5 w-2/3 animate-pulse rounded bg-gray-100" />
-
-                        <div className="h-4 w-full animate-pulse rounded bg-gray-100" />
-
-                        <div className="h-4 w-1/2 animate-pulse rounded bg-gray-100" />
-
-                        <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
-
-                      </div>
-
-                    </div>
+                    <MenuCard
+                      key={item.id}
+                      item={item}
+                      quantity={getCartQuantity(
+                        item.id,
+                      )}
+                      onAdd={() =>
+                        addToCart(item)
+                      }
+                      onIncrease={() =>
+                        increaseQuantity(
+                          item.id,
+                        )
+                      }
+                      onDecrease={() =>
+                        decreaseQuantity(
+                          item.id,
+                        )
+                      }
+                    />
                   ),
                 )}
 
               </div>
             )}
 
-            {/* ERROR */}
-
-            {!loading &&
-              error && (
-                <div className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-600">
-                  {error}
-                </div>
-              )}
-
-            {/* EMPTY */}
-
-            {!loading &&
-              !error &&
-              filteredItems.length ===
-                0 && (
-                <div className="rounded-2xl border border-gray-100 bg-white py-20 text-center">
-
-                  <Utensils
-                    size={32}
-                    className="mx-auto text-gray-300"
-                  />
-
-                  <p className="mt-4 font-medium text-gray-600">
-                    {search ||
-                    activeCategory !==
-                      null
-                      ? "No meals match your filters"
-                      : "No meals found"}
-                  </p>
-
-                  <p className="mt-1 text-sm text-gray-400">
-                    {search ||
-                    activeCategory !==
-                      null
-                      ? "Try another category or search term."
-                      : "The canteen menu is currently empty."}
-                  </p>
-
-                  {(search ||
-                    activeCategory !==
-                      null) && (
-                    <button
-                      type="button"
-                      onClick={
-                        clearFilters
-                      }
-                      className="mt-5 rounded-xl bg-[#32145f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
-                    >
-                      Show All Meals
-                    </button>
-                  )}
-
-                </div>
-              )}
-
-            {/* MENU CARDS */}
-
-            {!loading &&
-              !error &&
-              filteredItems.length >
-                0 && (
-                <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-
-                  {filteredItems.map(
-                    (item) => (
-                      <MenuCard
-                        key={item.id}
-                        item={item}
-                        quantity={getCartQuantity(
-                          item.id,
-                        )}
-                        onAdd={() =>
-                          addToCart(item)
-                        }
-                        onIncrease={() =>
-                          increaseQuantity(
-                            item.id,
-                          )
-                        }
-                        onDecrease={() =>
-                          decreaseQuantity(
-                            item.id,
-                          )
-                        }
-                      />
-                    ),
-                  )}
-
-                </div>
-              )}
-
-          </section>
-
-        </div>
+        </section>
 
       </main>
-
-      {/* ======================================================
-          MOBILE BOTTOM NAVIGATION
-      ====================================================== */}
-
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-100 bg-white px-3 py-2 lg:hidden">
-
-        <div className="grid grid-cols-4 gap-2">
-
-          <MobileNavItem
-            icon={
-              <LayoutDashboard
-                size={19}
-              />
-            }
-            label="Home"
-            active={
-              activeNav ===
-              "Dashboard"
-            }
-            onClick={() =>
-              handleNavigation(
-                "Dashboard",
-              )
-            }
-          />
-
-          <MobileNavItem
-            icon={
-              <ClipboardList
-                size={19}
-              />
-            }
-            label="Orders"
-            active={
-              activeNav ===
-              "My Orders"
-            }
-            onClick={() =>
-              handleNavigation(
-                "My Orders",
-              )
-            }
-          />
-
-          <MobileNavItem
-            icon={
-              <ShoppingCart
-                size={19}
-              />
-            }
-            label="Cart"
-            active={false}
-            badge={totalItems}
-            onClick={() =>
-              navigate("/cart")
-            }
-          />
-
-          <MobileNavItem
-            icon={
-              <User size={19} />
-            }
-            label="Profile"
-            active={
-              activeNav === "Profile"
-            }
-            onClick={() =>
-              handleNavigation(
-                "Profile",
-              )
-            }
-          />
-
-        </div>
-
-      </div>
 
     </div>
   );
 }
+
 
 /* ============================================================
    CATEGORY BUTTON
@@ -1013,6 +869,7 @@ function CategoryButton({
   );
 }
 
+
 /* ============================================================
    MENU CARD
 ============================================================ */
@@ -1058,6 +915,7 @@ function MenuCard({
 
       </div>
 
+
       {/* CONTENT */}
 
       <div className="p-5">
@@ -1087,6 +945,7 @@ function MenuCard({
 
         </div>
 
+
         {/* AVAILABILITY */}
 
         <div className="mt-5 flex items-center justify-between gap-4">
@@ -1102,6 +961,7 @@ function MenuCard({
               ? "Unavailable"
               : `${item.stock} available`}
           </span>
+
 
           {/* ADD */}
 
@@ -1132,11 +992,15 @@ function MenuCard({
 
               <button
                 type="button"
-                onClick={onDecrease}
+                onClick={
+                  onDecrease
+                }
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-[#32145f] transition hover:bg-white"
                 title="Decrease quantity"
               >
-                <Minus size={15} />
+                <Minus
+                  size={15}
+                />
               </button>
 
               <span className="flex min-w-8 items-center justify-center text-sm font-bold text-[#32145f]">
@@ -1155,21 +1019,25 @@ function MenuCard({
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-[#32145f] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                 title="Increase quantity"
               >
-                <Plus size={15} />
+                <Plus
+                  size={15}
+                />
               </button>
 
             </div>
-
           )}
 
         </div>
+
 
         {/* ADDED */}
 
         {quantity > 0 && (
           <div className="mt-4 flex items-center gap-2 text-xs font-medium text-green-600">
 
-            <Check size={14} />
+            <Check
+              size={14}
+            />
 
             {quantity}{" "}
             {quantity === 1
@@ -1183,86 +1051,5 @@ function MenuCard({
       </div>
 
     </article>
-  );
-}
-
-/* ============================================================
-   SIDEBAR NAV
-============================================================ */
-
-function NavItem({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
-        active
-          ? "bg-purple-50 text-[#32145f]"
-          : "text-gray-500 hover:bg-gray-50 hover:text-[#32145f]"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-/* ============================================================
-   MOBILE NAV
-============================================================ */
-
-function MobileNavItem({
-  icon,
-  label,
-  active = false,
-  badge = 0,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  badge?: number;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative flex flex-col items-center justify-center rounded-xl py-2 text-[11px] font-medium transition ${
-        active
-          ? "bg-purple-50 text-[#32145f]"
-          : "text-gray-400 hover:text-[#32145f]"
-      }`}
-    >
-
-      <div className="relative">
-
-        {icon}
-
-        {badge > 0 && (
-          <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#32145f] px-1 text-[9px] font-bold text-white">
-            {badge > 9
-              ? "9+"
-              : badge}
-          </span>
-        )}
-
-      </div>
-
-      <span className="mt-1">
-        {label}
-      </span>
-
-    </button>
   );
 }

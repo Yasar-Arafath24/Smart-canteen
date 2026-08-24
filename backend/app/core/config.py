@@ -1,4 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
 
 
 class Settings(BaseSettings):
@@ -18,14 +21,12 @@ class Settings(BaseSettings):
     SUPABASE_ANON_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
 
+    FRONTEND_URL: str = "http://localhost:5173"
+
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
     ]
-
-    # ========================================================
-    # EMAIL
-    # ========================================================
 
     MAIL_HOST: str = "localhost"
     MAIL_PORT: int = 1025
@@ -35,10 +36,6 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str = "Smart Canteen"
     MAIL_STARTTLS: bool = False
     MAIL_SSL_TLS: bool = False
-
-    # ========================================================
-    # RAZORPAY
-    # ========================================================
 
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""

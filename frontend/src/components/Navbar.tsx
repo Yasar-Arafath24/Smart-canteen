@@ -32,6 +32,10 @@ import { logout } from "../api/auth";
 import { useCart } from "../context/CartContext";
 
 
+/* ============================================================
+   TYPES
+============================================================ */
+
 interface NavItem {
   label: string;
   to: string;
@@ -41,7 +45,7 @@ interface NavItem {
 
 /* ============================================================
    CUSTOMER LINKS
-   KEEP CUSTOMER NAVIGATION AS IT IS
+   CUSTOMER NAVIGATION STAYS THE SAME
 ============================================================ */
 
 const CUSTOMER_LINKS: NavItem[] = [
@@ -202,7 +206,7 @@ function Navbar({
 
 
   /* ==========================================================
-     LINKS
+     PRIMARY LINKS
   ========================================================== */
 
   const primaryLinks =
@@ -211,6 +215,11 @@ function Navbar({
       : role === "admin"
         ? ADMIN_PRIMARY_LINKS
         : STAFF_PRIMARY_LINKS;
+
+
+  /* ==========================================================
+     MORE LINKS
+  ========================================================== */
 
   const moreLinks =
     role === "admin"
@@ -221,7 +230,7 @@ function Navbar({
 
 
   /* ==========================================================
-     CLOSE MENUS ON ROUTE CHANGE
+     CLOSE MENUS WHEN ROUTE CHANGES
   ========================================================== */
 
   useEffect(() => {
@@ -273,7 +282,7 @@ function Navbar({
 
 
   /* ==========================================================
-     BRAND DESTINATION
+     HOME PATH
   ========================================================== */
 
   function getHomePath() {
@@ -289,14 +298,23 @@ function Navbar({
   }
 
 
+  /* ==========================================================
+     RENDER
+  ========================================================== */
+
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
 
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+      {/* ======================================================
+          IMPORTANT:
+          Full-width container so SmartCanteen aligns left.
+      ====================================================== */}
 
-        {/* ==================================================
+      <div className="flex h-16 w-full items-center justify-between gap-4 px-6">
+
+        {/* ====================================================
             BRAND
-        ================================================== */}
+        ==================================================== */}
 
         <button
           type="button"
@@ -335,13 +353,15 @@ function Navbar({
         </button>
 
 
-        {/* ==================================================
+        {/* ====================================================
             DESKTOP NAVIGATION
-        ================================================== */}
+        ==================================================== */}
 
         <nav className="hidden min-w-0 items-center gap-1 md:flex">
 
-          {/* Primary links */}
+          {/* --------------------------------------------------
+              PRIMARY LINKS
+          -------------------------------------------------- */}
 
           {primaryLinks.map(
             (link) => {
@@ -390,10 +410,11 @@ function Navbar({
           )}
 
 
-          {/* More menu */}
+          {/* --------------------------------------------------
+              ADMIN / STAFF MORE MENU
+          -------------------------------------------------- */}
 
-          {role !==
-            "customer" && (
+          {role !== "customer" && (
             <div className="relative">
 
               <button
@@ -484,13 +505,15 @@ function Navbar({
         </nav>
 
 
-        {/* ==================================================
+        {/* ====================================================
             ACTIONS
-        ================================================== */}
+        ==================================================== */}
 
         <div className="flex shrink-0 items-center gap-2">
 
-          {/* Desktop logout */}
+          {/* --------------------------------------------------
+              DESKTOP LOGOUT
+          -------------------------------------------------- */}
 
           <button
             type="button"
@@ -512,7 +535,9 @@ function Navbar({
           </button>
 
 
-          {/* Mobile menu */}
+          {/* --------------------------------------------------
+              MOBILE MENU BUTTON
+          -------------------------------------------------- */}
 
           <button
             type="button"
@@ -557,7 +582,9 @@ function Navbar({
 
           <nav className="flex flex-col gap-1">
 
-            {/* Primary */}
+            {/* ------------------------------------------------
+                PRIMARY LINKS
+            ------------------------------------------------ */}
 
             {primaryLinks.map(
               (link) => (
@@ -601,10 +628,11 @@ function Navbar({
             )}
 
 
-            {/* More */}
+            {/* ------------------------------------------------
+                ADMIN / STAFF MORE
+            ------------------------------------------------ */}
 
-            {role !==
-              "customer" && (
+            {role !== "customer" && (
               <>
                 <div className="my-2 border-t border-gray-100" />
 
@@ -648,7 +676,9 @@ function Navbar({
             )}
 
 
-            {/* Mobile logout */}
+            {/* ------------------------------------------------
+                MOBILE LOGOUT
+            ------------------------------------------------ */}
 
             <div className="my-2 border-t border-gray-100" />
 

@@ -253,7 +253,14 @@ export default function Login() {
                     disabled={loading}
                     className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-11 pr-12 text-sm outline-none transition focus:border-[#32145f] focus:ring-4 focus:ring-purple-100 disabled:bg-gray-50"
                   />
-
+<div className="flex justify-end">
+  <Link
+    to="/forgot-password"
+    className="text-sm font-semibold text-[#32145f] hover:underline"
+  >
+    Forgot password?
+  </Link>
+</div>
                   <button
                     type="button"
                     onClick={() =>

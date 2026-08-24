@@ -2,7 +2,21 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from pydantic import BaseModel, EmailStr, Field
 
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
 class UserCreate(BaseModel):
     name: str = Field(
         min_length=2,
@@ -55,3 +69,34 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
+from pydantic import BaseModel, EmailStr, Field
+
+
+class ChangePasswordRequest(
+    BaseModel
+):
+    current_password: str = Field(
+        min_length=1
+    )
+
+    new_password: str = Field(
+        min_length=8
+    )
+
+
+class ForgotPasswordRequest(
+    BaseModel
+):
+    email: EmailStr
+
+
+class ResetPasswordRequest(
+    BaseModel
+):
+    token: str = Field(
+        min_length=1
+    )
+
+    new_password: str = Field(
+        min_length=8
+    )

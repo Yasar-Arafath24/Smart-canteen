@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import { useEffect, useState } from "react";
 import {
   Navigate,
   Outlet,
@@ -10,17 +6,33 @@ import {
   Routes,
 } from "react-router-dom";
 
-
 /* ============================================================
-   AUTH
+   ADMIN PAGES
 ============================================================ */
 
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-
+import AdminMenu from "./pages/admin/AdminMenu";
+import AdminOrders from "./pages/admin/AdminOrders";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminInventory from "./pages/admin/AdminInventory";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminStaffAttendance from "./pages/admin/AdminStaffAttendance";
+import AdminCategories from "./pages/admin/AdminCategories";
+import AdminActivity from "./pages/admin/AdminActivity";
 
 /* ============================================================
-   CUSTOMER
+   STAFF PAGES
+============================================================ */
+
+import StaffDashboard from "./pages/staff/StaffDashboard";
+import StaffOrders from "./pages/staff/StaffOrders";
+import StaffInventory from "./pages/staff/StaffInventory";
+import StaffNotifications from "./pages/staff/StaffNotifications";
+import StaffAttendance from "./pages/staff/StaffAttendance";
+import StaffProfile from "./pages/staff/StaffProfile";
+
+/* ============================================================
+   CUSTOMER PAGES
 ============================================================ */
 
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
@@ -32,44 +44,26 @@ import Payment from "./pages/customer/Payment";
 import Notifications from "./pages/customer/Notifications";
 import Profile from "./pages/customer/Profile";
 
-
 /* ============================================================
-   ADMIN
+   AUTH PAGES
 ============================================================ */
 
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminOrders from "./pages/admin/AdminOrders";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminInventory from "./pages/admin/AdminInventory";
-import AdminMenu from "./pages/admin/AdminMenu";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminCategories from "./pages/admin/AdminCategories";
-import AdminStaffAttendance from "./pages/admin/AdminStaffAttendance";
-import AdminActivity from "./pages/admin/AdminActivity";
-
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 
 /* ============================================================
-   STAFF
+   OTHER PAGES / COMPONENTS
 ============================================================ */
 
-import StaffDashboard from "./pages/staff/StaffDashboard";
-import StaffOrders from "./pages/staff/StaffOrders";
-import StaffInventory from "./pages/staff/StaffInventory";
-import StaffNotifications from "./pages/staff/StaffNotifications";
-import StaffAttendance from "./pages/staff/StaffAttendance";
-import StaffProfile from "./pages/staff/StaffProfile";
-
-
-/* ============================================================
-   SHARED
-============================================================ */
+import InfoPage from "./pages/InfoPage";
 
 import { CartProvider } from "./context/CartContext";
+
 import SplashScreen from "./components/SplashScreen";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import InfoPage from "./pages/InfoPage";
-
 
 /* ============================================================
    CUSTOMER LAYOUT
@@ -79,14 +73,11 @@ function CustomerLayout() {
   return (
     <>
       <Navbar role="customer" />
-
       <Outlet />
-
       <Footer />
     </>
   );
 }
-
 
 /* ============================================================
    ADMIN LAYOUT
@@ -96,14 +87,11 @@ function AdminLayout() {
   return (
     <>
       <Navbar role="admin" />
-
       <Outlet />
-
       <Footer />
     </>
   );
 }
-
 
 /* ============================================================
    STAFF LAYOUT
@@ -113,14 +101,11 @@ function StaffLayout() {
   return (
     <>
       <Navbar role="staff" />
-
       <Outlet />
-
       <Footer />
     </>
   );
 }
-
 
 /* ============================================================
    APP
@@ -131,33 +116,24 @@ function App() {
     "splash" | "fading" | "done"
   >("splash");
 
-
   /* ==========================================================
      SPLASH SCREEN
   ========================================================== */
 
   useEffect(() => {
-    const fadeTimer =
-      window.setTimeout(() => {
-        setStage("fading");
-      }, 2400);
+    const fadeTimer = window.setTimeout(() => {
+      setStage("fading");
+    }, 2400);
 
-    const doneTimer =
-      window.setTimeout(() => {
-        setStage("done");
-      }, 3000);
+    const doneTimer = window.setTimeout(() => {
+      setStage("done");
+    }, 3000);
 
     return () => {
-      window.clearTimeout(
-        fadeTimer,
-      );
-
-      window.clearTimeout(
-        doneTimer,
-      );
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(doneTimer);
     };
   }, []);
-
 
   /* ==========================================================
      SHOW SPLASH
@@ -166,13 +142,10 @@ function App() {
   if (stage !== "done") {
     return (
       <SplashScreen
-        fading={
-          stage === "fading"
-        }
+        fading={stage === "fading"}
       />
     );
   }
-
 
   /* ==========================================================
      APPLICATION
@@ -180,13 +153,11 @@ function App() {
 
   return (
     <div className="app-enter">
-
       <CartProvider>
-
         <Routes>
 
           {/* ==================================================
-              AUTH
+              AUTH ROUTES
           ================================================== */}
 
           <Route
@@ -199,22 +170,24 @@ function App() {
             element={<Register />}
           />
 
-
-          {/* ==================================================
-              CUSTOMER
-          ================================================== */}
+          <Route
+            path="/forgot-password"
+            element={<ForgotPassword />}
+          />
 
           <Route
-            element={
-              <CustomerLayout />
-            }
-          >
+            path="/reset-password"
+            element={<ResetPassword />}
+          />
 
+          {/* ==================================================
+              CUSTOMER ROUTES
+          ================================================== */}
+
+          <Route element={<CustomerLayout />}>
             <Route
               path="/dashboard"
-              element={
-                <CustomerDashboard />
-              }
+              element={<CustomerDashboard />}
             />
 
             <Route
@@ -224,222 +197,121 @@ function App() {
 
             <Route
               path="/checkout"
-              element={
-                <Checkout />
-              }
+              element={<Checkout />}
             />
 
             <Route
               path="/payment"
-              element={
-                <Payment />
-              }
+              element={<Payment />}
             />
 
             <Route
               path="/notifications"
-              element={
-                <Notifications />
-              }
+              element={<Notifications />}
             />
 
             <Route
               path="/profile"
-              element={
-                <Profile />
-              }
+              element={<Profile />}
             />
 
             <Route
               path="/orders"
-              element={
-                <Orders />
-              }
+              element={<Orders />}
             />
 
             <Route
               path="/orders/:orderId"
-              element={
-                <OrderDetails />
-              }
+              element={<OrderDetails />}
             />
-
           </Route>
 
-
           {/* ==================================================
-              ADMIN
+              ADMIN ROUTES
           ================================================== */}
 
-          <Route
-            element={
-              <AdminLayout />
-            }
-          >
-
-            {/* Dashboard */}
-
+          <Route element={<AdminLayout />}>
             <Route
               path="/admin"
-              element={
-                <AdminDashboard />
-              }
+              element={<AdminDashboard />}
             />
-
-
-            {/* Orders */}
 
             <Route
               path="/admin/orders"
-              element={
-                <AdminOrders />
-              }
+              element={<AdminOrders />}
             />
-
-
-            {/* Users */}
 
             <Route
               path="/admin/users"
-              element={
-                <AdminUsers />
-              }
+              element={<AdminUsers />}
             />
-
-
-            {/* Inventory */}
 
             <Route
               path="/admin/inventory"
-              element={
-                <AdminInventory />
-              }
+              element={<AdminInventory />}
             />
-
-
-            {/* Menu */}
 
             <Route
               path="/admin/menu"
-              element={
-                <AdminMenu />
-              }
+              element={<AdminMenu />}
             />
-
-
-            {/* Categories */}
-
-            <Route
-              path="/admin/categories"
-              element={
-                <AdminCategories />
-              }
-            />
-
-
-            {/* Analytics */}
 
             <Route
               path="/admin/analytics"
-              element={
-                <AdminAnalytics />
-              }
+              element={<AdminAnalytics />}
             />
-
-
-            {/* Staff Attendance */}
 
             <Route
               path="/admin/staff-attendance"
-              element={
-                <AdminStaffAttendance />
-              }
+              element={<AdminStaffAttendance />}
             />
 
-
-            {/* Activity / Audit Logs */}
+            <Route
+              path="/admin/categories"
+              element={<AdminCategories />}
+            />
 
             <Route
               path="/admin/activity"
-              element={
-                <AdminActivity />
-              }
+              element={<AdminActivity />}
             />
-
           </Route>
 
-
           {/* ==================================================
-              STAFF
+              STAFF ROUTES
           ================================================== */}
 
-          <Route
-            element={
-              <StaffLayout />
-            }
-          >
-
-            {/* Dashboard */}
-
+          <Route element={<StaffLayout />}>
             <Route
               path="/staff"
-              element={
-                <StaffDashboard />
-              }
+              element={<StaffDashboard />}
             />
-
-
-            {/* Orders */}
 
             <Route
               path="/staff/orders"
-              element={
-                <StaffOrders />
-              }
+              element={<StaffOrders />}
             />
-
-
-            {/* Inventory */}
 
             <Route
               path="/staff/inventory"
-              element={
-                <StaffInventory />
-              }
+              element={<StaffInventory />}
             />
-
-
-            {/* Notifications */}
 
             <Route
               path="/staff/notifications"
-              element={
-                <StaffNotifications />
-              }
+              element={<StaffNotifications />}
             />
-
-
-            {/* Attendance */}
 
             <Route
               path="/staff/attendance"
-              element={
-                <StaffAttendance />
-              }
+              element={<StaffAttendance />}
             />
-
-
-            {/* Profile */}
 
             <Route
               path="/staff/profile"
-              element={
-                <StaffProfile />
-              }
+              element={<StaffProfile />}
             />
-
           </Route>
-
 
           {/* ==================================================
               INFO PAGES
@@ -475,7 +347,6 @@ function App() {
             }
           />
 
-
           {/* ==================================================
               DEFAULT
           ================================================== */}
@@ -489,7 +360,6 @@ function App() {
               />
             }
           />
-
 
           {/* ==================================================
               UNKNOWN ROUTES
@@ -506,12 +376,9 @@ function App() {
           />
 
         </Routes>
-
       </CartProvider>
-
     </div>
   );
 }
-
 
 export default App;
