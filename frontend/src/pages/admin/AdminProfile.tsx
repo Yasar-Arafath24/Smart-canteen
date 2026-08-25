@@ -14,6 +14,8 @@ import {
   useState,
 } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import { api } from "../../api/client";
 
 
@@ -26,14 +28,17 @@ interface UserProfile {
   name?: string | null;
   email: string;
   role: string;
+  is_active?: boolean;
 }
 
 
 /* ============================================================
-   STAFF PROFILE
+   ADMIN PROFILE
 ============================================================ */
 
-export default function StaffProfile() {
+export default function AdminProfile() {
+  const navigate = useNavigate();
+
   /* ----------------------------------------------------------
      PROFILE
   ---------------------------------------------------------- */
@@ -127,7 +132,7 @@ export default function StaffProfile() {
       );
     } catch (err: any) {
       console.error(
-        "Load profile error:",
+        "Admin profile load error:",
         err,
       );
 
@@ -169,7 +174,9 @@ export default function StaffProfile() {
           },
         );
 
-      setProfile(response.data);
+      setProfile(
+        response.data,
+      );
 
       setName(
         response.data.name || "",
@@ -180,14 +187,29 @@ export default function StaffProfile() {
       );
     } catch (err: any) {
       console.error(
-        "Update profile error:",
+        "Admin profile update error:",
         err,
       );
 
-      setError(
-        err?.response?.data?.detail ||
-          "Unable to update your profile.",
-      );
+      const detail =
+        err?.response?.data?.detail;
+
+      if (Array.isArray(detail)) {
+        setError(
+          detail
+            .map(
+              (item: any) =>
+                item?.msg ||
+                "Validation error",
+            )
+            .join(", "),
+        );
+      } else {
+        setError(
+          detail ||
+            "Unable to update your profile.",
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -202,10 +224,6 @@ export default function StaffProfile() {
     setPasswordError("");
     setPasswordSuccess("");
 
-    /* --------------------------------------------------------
-       REQUIRED
-    -------------------------------------------------------- */
-
     if (
       !currentPassword ||
       !newPassword ||
@@ -217,24 +235,12 @@ export default function StaffProfile() {
       return;
     }
 
-
-    /* --------------------------------------------------------
-       MINIMUM LENGTH
-    -------------------------------------------------------- */
-
-    if (
-      newPassword.length < 8
-    ) {
+    if (newPassword.length < 8) {
       setPasswordError(
         "New password must be at least 8 characters.",
       );
       return;
     }
-
-
-    /* --------------------------------------------------------
-       CONFIRM PASSWORD
-    -------------------------------------------------------- */
 
     if (
       newPassword !==
@@ -246,11 +252,6 @@ export default function StaffProfile() {
       return;
     }
 
-
-    /* --------------------------------------------------------
-       DIFFERENT PASSWORD
-    -------------------------------------------------------- */
-
     if (
       currentPassword ===
       newPassword
@@ -260,7 +261,6 @@ export default function StaffProfile() {
       );
       return;
     }
-
 
     try {
       setChangingPassword(true);
@@ -279,10 +279,6 @@ export default function StaffProfile() {
           },
         );
 
-      /* ------------------------------------------------------
-         CLEAR FORM
-      ------------------------------------------------------ */
-
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -293,16 +289,14 @@ export default function StaffProfile() {
       );
     } catch (err: any) {
       console.error(
-        "Change password error:",
+        "Admin change password error:",
         err,
       );
 
       const detail =
         err?.response?.data?.detail;
 
-      if (
-        Array.isArray(detail)
-      ) {
+      if (Array.isArray(detail)) {
         setPasswordError(
           detail
             .map(
@@ -312,7 +306,6 @@ export default function StaffProfile() {
             )
             .join(", "),
         );
-
         return;
       }
 
@@ -333,7 +326,7 @@ export default function StaffProfile() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa]">
 
         <div className="flex items-center gap-3 text-sm text-gray-400">
 
@@ -352,11 +345,11 @@ export default function StaffProfile() {
 
 
   /* ==========================================================
-     PAGE
+     MAIN
   ========================================================== */
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-[#fafafa] text-gray-900">
 
       {/* ======================================================
           HEADER
@@ -364,29 +357,43 @@ export default function StaffProfile() {
 
       <header className="border-b border-[#24113f] bg-[#32145f]">
 
-        <div className="mx-auto flex h-20 max-w-7xl items-center gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
 
           <div>
 
-            <p className="text-xs font-medium text-purple-200">
-              Account
+            <p className="text-sm font-medium text-purple-200">
+              Administration
             </p>
 
-            <h1 className="text-lg font-bold text-white">
-              My Profile
+            <h1 className="mt-1 text-2xl font-bold text-white">
+              Admin Profile
             </h1>
 
+            <p className="mt-1 text-sm text-purple-200">
+              Manage your account and security settings.
+            </p>
+
           </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/admin")
+            }
+            className="rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+          >
+            Dashboard
+          </button>
 
         </div>
 
       </header>
 
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-7xl px-6 py-10">
 
         {/* ====================================================
-            PROFILE ERROR
+            GENERAL ERROR
         ==================================================== */}
 
         {error && (
@@ -397,7 +404,7 @@ export default function StaffProfile() {
 
 
         {/* ====================================================
-            PROFILE SUCCESS
+            GENERAL SUCCESS
         ==================================================== */}
 
         {success && (
@@ -413,33 +420,46 @@ export default function StaffProfile() {
               PROFILE CARD
           ================================================== */}
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
 
             <div className="flex flex-col items-center text-center">
 
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-purple-50">
 
-                <User
+                <ShieldCheck
                   size={42}
                   className="text-[#32145f]"
                 />
 
               </div>
 
-
               <h3 className="mt-5 text-lg font-bold text-[#24113f]">
-                {name || "Staff"}
+                {name || "Administrator"}
               </h3>
-
 
               <p className="mt-1 text-sm text-gray-400">
                 {profile?.email}
               </p>
 
-
               <span className="mt-4 rounded-full border border-purple-100 bg-purple-50 px-3 py-1.5 text-xs font-semibold capitalize text-[#32145f]">
-                {profile?.role || "staff"}
+                {profile?.role ||
+                  "admin"}
               </span>
+
+              {profile?.is_active !==
+                undefined && (
+                <span
+                  className={`mt-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    profile.is_active
+                      ? "bg-green-50 text-green-700"
+                      : "bg-red-50 text-red-600"
+                  }`}
+                >
+                  {profile.is_active
+                    ? "Active"
+                    : "Inactive"}
+                </span>
+              )}
 
             </div>
 
@@ -456,7 +476,7 @@ export default function StaffProfile() {
                 PERSONAL INFORMATION
             ================================================ */}
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
 
               <div className="flex items-center gap-3 border-b border-gray-100 pb-5">
 
@@ -476,7 +496,7 @@ export default function StaffProfile() {
                   </h3>
 
                   <p className="text-xs text-gray-400">
-                    Update your account details
+                    Update your administrator profile.
                   </p>
 
                 </div>
@@ -491,7 +511,7 @@ export default function StaffProfile() {
                 <div>
 
                   <label
-                    htmlFor="staff-profile-name"
+                    htmlFor="admin-profile-name"
                     className="mb-2 block text-sm font-medium text-gray-700"
                   >
                     Name
@@ -505,7 +525,7 @@ export default function StaffProfile() {
                     />
 
                     <input
-                      id="staff-profile-name"
+                      id="admin-profile-name"
                       type="text"
                       value={name}
                       onChange={(event) =>
@@ -528,7 +548,7 @@ export default function StaffProfile() {
                 <div>
 
                   <label
-                    htmlFor="staff-profile-email"
+                    htmlFor="admin-profile-email"
                     className="mb-2 block text-sm font-medium text-gray-700"
                   >
                     Email
@@ -542,10 +562,11 @@ export default function StaffProfile() {
                     />
 
                     <input
-                      id="staff-profile-email"
+                      id="admin-profile-email"
                       type="email"
                       value={
-                        profile?.email || ""
+                        profile?.email ||
+                        ""
                       }
                       disabled
                       className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 py-3.5 pl-11 pr-4 text-sm text-gray-500 outline-none"
@@ -560,7 +581,7 @@ export default function StaffProfile() {
                 </div>
 
 
-                {/* ROLE */}
+                {/* ACCOUNT TYPE */}
 
                 <div>
 
@@ -577,7 +598,7 @@ export default function StaffProfile() {
 
                     <span className="text-sm capitalize text-gray-600">
                       {profile?.role ||
-                        "staff"}
+                        "admin"}
                     </span>
 
                   </div>
@@ -630,13 +651,13 @@ export default function StaffProfile() {
                 CHANGE PASSWORD
             ================================================ */}
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
 
               <div className="flex items-center gap-3 border-b border-gray-100 pb-5">
 
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50">
 
-                  <ShieldCheck
+                  <Lock
                     size={19}
                     className="text-[#32145f]"
                   />
@@ -650,7 +671,7 @@ export default function StaffProfile() {
                   </h3>
 
                   <p className="text-xs text-gray-400">
-                    Keep your staff account secure.
+                    Update your administrator password securely.
                   </p>
 
                 </div>
@@ -676,10 +697,10 @@ export default function StaffProfile() {
               )}
 
 
-              <div className="mt-6 grid gap-5">
+              <div className="mt-6 space-y-5">
 
                 <PasswordField
-                  id="staff-current-password"
+                  id="admin-current-password"
                   label="Current Password"
                   value={
                     currentPassword
@@ -697,12 +718,12 @@ export default function StaffProfile() {
                     changingPassword
                   }
                   autoComplete="current-password"
-                  placeholder="Enter your current password"
+                  placeholder="Enter current password"
                 />
 
 
                 <PasswordField
-                  id="staff-new-password"
+                  id="admin-new-password"
                   label="New Password"
                   value={
                     newPassword
@@ -720,17 +741,16 @@ export default function StaffProfile() {
                     changingPassword
                   }
                   autoComplete="new-password"
-                  placeholder="Enter your new password"
+                  placeholder="Enter new password"
                 />
 
-
                 <p className="-mt-2 text-xs text-gray-400">
-                  Password must contain at least 8 characters.
+                  Password must be at least 8 characters.
                 </p>
 
 
                 <PasswordField
-                  id="staff-confirm-password"
+                  id="admin-confirm-password"
                   label="Confirm New Password"
                   value={
                     confirmPassword
@@ -748,13 +768,13 @@ export default function StaffProfile() {
                     changingPassword
                   }
                   autoComplete="new-password"
-                  placeholder="Confirm your new password"
+                  placeholder="Confirm new password"
                 />
 
               </div>
 
 
-              {/* CHANGE PASSWORD */}
+              {/* CHANGE PASSWORD BUTTON */}
 
               <div className="mt-7 flex justify-end border-t border-gray-100 pt-6">
 

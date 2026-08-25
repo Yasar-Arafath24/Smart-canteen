@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   Navigate,
   Outlet,
@@ -19,6 +20,7 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminStaffAttendance from "./pages/admin/AdminStaffAttendance";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminActivity from "./pages/admin/AdminActivity";
+import AdminProfile from "./pages/admin/AdminProfile";
 
 /* ============================================================
    STAFF PAGES
@@ -185,6 +187,7 @@ function App() {
           ================================================== */}
 
           <Route element={<CustomerLayout />}>
+
             <Route
               path="/dashboard"
               element={<CustomerDashboard />}
@@ -224,6 +227,7 @@ function App() {
               path="/orders/:orderId"
               element={<OrderDetails />}
             />
+
           </Route>
 
           {/* ==================================================
@@ -231,9 +235,16 @@ function App() {
           ================================================== */}
 
           <Route element={<AdminLayout />}>
+
             <Route
               path="/admin"
               element={<AdminDashboard />}
+            />
+
+            {/* ADMIN PROFILE */}
+            <Route
+              path="/admin/profile"
+              element={<AdminProfile />}
             />
 
             <Route
@@ -275,6 +286,7 @@ function App() {
               path="/admin/activity"
               element={<AdminActivity />}
             />
+
           </Route>
 
           {/* ==================================================
@@ -282,6 +294,7 @@ function App() {
           ================================================== */}
 
           <Route element={<StaffLayout />}>
+
             <Route
               path="/staff"
               element={<StaffDashboard />}
@@ -311,6 +324,7 @@ function App() {
               path="/staff/profile"
               element={<StaffProfile />}
             />
+
           </Route>
 
           {/* ==================================================

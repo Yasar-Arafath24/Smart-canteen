@@ -39,6 +39,7 @@ import {
   type AdminDashboardEvent,
 } from "../../api/adminDashboardSocket";
 
+
 /* ============================================================
    TYPES
 ============================================================ */
@@ -55,6 +56,7 @@ interface MenuItem {
   created_at: string;
 }
 
+
 /* ============================================================
    MENU API
 ============================================================ */
@@ -65,6 +67,7 @@ async function getMenuItems(): Promise<MenuItem[]> {
 
   return response.data;
 }
+
 
 /* ============================================================
    ADMIN DASHBOARD
@@ -86,6 +89,7 @@ export default function AdminDashboard() {
   const [menuItems, setMenuItems] =
     useState<MenuItem[]>([]);
 
+
   /* ==========================================================
      LOADING
   ========================================================== */
@@ -99,6 +103,7 @@ export default function AdminDashboard() {
   const [liveConnected, setLiveConnected] =
     useState(false);
 
+
   /* ==========================================================
      ALERTS
   ========================================================== */
@@ -106,68 +111,77 @@ export default function AdminDashboard() {
   const [error, setError] =
     useState("");
 
+
   /* ==========================================================
      LOAD DASHBOARD
   ========================================================== */
 
-  const loadDashboard = useCallback(
-    async (
-      showLoading = true,
-    ) => {
-      try {
-        if (showLoading) {
-          setLoading(true);
-        } else {
-          setRefreshing(true);
+  const loadDashboard =
+    useCallback(
+      async (
+        showLoading = true,
+      ) => {
+        try {
+          if (showLoading) {
+            setLoading(true);
+          } else {
+            setRefreshing(true);
+          }
+
+          setError("");
+
+          const [
+            ordersData,
+            usersData,
+            menuData,
+          ] = await Promise.all([
+            getAllOrders(),
+            getAllUsers(),
+            getMenuItems(),
+          ]);
+
+          setOrders(
+            Array.isArray(
+              ordersData,
+            )
+              ? ordersData
+              : [],
+          );
+
+          setUsers(
+            Array.isArray(
+              usersData,
+            )
+              ? usersData
+              : [],
+          );
+
+          setMenuItems(
+            Array.isArray(menuData)
+              ? menuData
+              : [],
+          );
+        } catch (err: any) {
+          console.error(
+            "Admin dashboard error:",
+            err,
+          );
+
+          setError(
+            err?.response?.data
+              ?.detail ||
+              err?.response?.data
+                ?.message ||
+              "Unable to load admin dashboard.",
+          );
+        } finally {
+          setLoading(false);
+          setRefreshing(false);
         }
+      },
+      [],
+    );
 
-        setError("");
-
-        const [
-          ordersData,
-          usersData,
-          menuData,
-        ] = await Promise.all([
-          getAllOrders(),
-          getAllUsers(),
-          getMenuItems(),
-        ]);
-
-        setOrders(
-          Array.isArray(ordersData)
-            ? ordersData
-            : [],
-        );
-
-        setUsers(
-          Array.isArray(usersData)
-            ? usersData
-            : [],
-        );
-
-        setMenuItems(
-          Array.isArray(menuData)
-            ? menuData
-            : [],
-        );
-      } catch (err: any) {
-        console.error(
-          "Admin dashboard error:",
-          err,
-        );
-
-        setError(
-          err?.response?.data?.detail ||
-            err?.response?.data?.message ||
-            "Unable to load admin dashboard.",
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [],
-  );
 
   /* ==========================================================
      INITIAL LOAD
@@ -176,6 +190,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
 
   /* ==========================================================
      LIVE WEBSOCKET
@@ -187,14 +202,6 @@ export default function AdminDashboard() {
         (
           _event: AdminDashboardEvent,
         ) => {
-          /*
-           * The backend event means our currently
-           * loaded dashboard data is stale.
-           *
-           * Re-fetch the dashboard so every card,
-           * recent order, revenue value, and inventory
-           * value remains authoritative.
-           */
           loadDashboard(false);
         },
         setLiveConnected,
@@ -205,6 +212,7 @@ export default function AdminDashboard() {
     };
   }, [loadDashboard]);
 
+
   /* ==========================================================
      REFRESH
   ========================================================== */
@@ -212,6 +220,7 @@ export default function AdminDashboard() {
   async function handleRefresh() {
     await loadDashboard(false);
   }
+
 
   /* ==========================================================
      STATISTICS
@@ -254,9 +263,14 @@ export default function AdminDashboard() {
             "cancelled",
         )
         .reduce(
-          (total, order) =>
+          (
+            total,
+            order,
+          ) =>
             total +
-            Number(order.total || 0),
+            Number(
+              order.total || 0,
+            ),
           0,
         );
 
@@ -286,8 +300,11 @@ export default function AdminDashboard() {
       ).length;
 
     return {
-      totalOrders: orders.length,
-      totalUsers: users.length,
+      totalOrders:
+        orders.length,
+
+      totalUsers:
+        users.length,
 
       pending,
       confirmed,
@@ -298,9 +315,13 @@ export default function AdminDashboard() {
 
       totalMenuItems:
         menuItems.length,
+
       availableMenuItems,
+
       unavailableMenuItems,
+
       lowStockItems,
+
       outOfStockItems,
     };
   }, [
@@ -308,6 +329,7 @@ export default function AdminDashboard() {
     users,
     menuItems,
   ]);
+
 
   /* ==========================================================
      RECENT ORDERS
@@ -328,8 +350,9 @@ export default function AdminDashboard() {
         .slice(0, 10);
     }, [orders]);
 
+
   /* ==========================================================
-     LOW STOCK MENU ITEMS
+     LOW STOCK ITEMS
   ========================================================== */
 
   const lowStockItems =
@@ -345,6 +368,7 @@ export default function AdminDashboard() {
         )
         .slice(0, 8);
     }, [menuItems]);
+
 
   /* ==========================================================
      LOADING
@@ -369,12 +393,14 @@ export default function AdminDashboard() {
     );
   }
 
+
   /* ==========================================================
      MAIN
   ========================================================== */
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
+
 
       {/* ======================================================
           HEADER
@@ -400,45 +426,76 @@ export default function AdminDashboard() {
 
           </div>
 
+
+          {/* HEADER ACTIONS */}
+
           <div className="flex items-center gap-3">
 
-          <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-xs font-semibold text-white">
+            {/* LIVE STATUS */}
 
-            <span
-              className={`h-2 w-2 rounded-full ${
-                liveConnected
-                  ? "animate-pulse bg-green-400"
-                  : "bg-yellow-300"
-              }`}
-            />
+            <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-xs font-semibold text-white">
 
-            {liveConnected
-              ? "Live"
-              : "Connecting..."}
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  liveConnected
+                    ? "animate-pulse bg-green-400"
+                    : "bg-yellow-300"
+                }`}
+              />
 
-          </div>
+              {liveConnected
+                ? "Live"
+                : "Connecting..."}
 
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+            </div>
 
-            <RefreshCw
-              size={17}
-              className={
-                refreshing
-                  ? "animate-spin"
-                  : ""
+
+            {/* ADMIN PROFILE */}
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/admin/profile",
+                )
               }
-            />
+              className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50"
+            >
 
-            {refreshing
-              ? "Refreshing..."
-              : "Refresh"}
+              <Users
+                size={17}
+              />
 
-          </button>
+              Admin Profile
+
+            </button>
+
+
+            {/* REFRESH */}
+
+            <button
+              type="button"
+              onClick={
+                handleRefresh
+              }
+              disabled={refreshing}
+              className="flex items-center gap-2 rounded-xl border border-white/40 bg-white px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+
+              <RefreshCw
+                size={17}
+                className={
+                  refreshing
+                    ? "animate-spin"
+                    : ""
+                }
+              />
+
+              {refreshing
+                ? "Refreshing..."
+                : "Refresh"}
+
+            </button>
 
           </div>
 
@@ -446,7 +503,9 @@ export default function AdminDashboard() {
 
       </header>
 
+
       <main className="mx-auto max-w-7xl px-6 py-10">
+
 
         {/* ====================================================
             ERROR
@@ -484,6 +543,7 @@ export default function AdminDashboard() {
 
           </div>
         )}
+
 
         {/* ====================================================
             QUICK ADMIN ACTIONS
@@ -526,9 +586,12 @@ export default function AdminDashboard() {
               }
             />
 
+
             <ManagementCard
               icon={
-                <Package size={22} />
+                <Package
+                  size={22}
+                />
               }
               title="Inventory"
               description="Manage stock and low-stock items."
@@ -538,6 +601,7 @@ export default function AdminDashboard() {
                 )
               }
             />
+
 
             <ManagementCard
               icon={
@@ -552,9 +616,12 @@ export default function AdminDashboard() {
               }
             />
 
+
             <ManagementCard
               icon={
-                <Users size={22} />
+                <Users
+                  size={22}
+                />
               }
               title="Customers"
               description="Manage registered users."
@@ -564,6 +631,7 @@ export default function AdminDashboard() {
                 )
               }
             />
+
 
             <ManagementCard
               icon={
@@ -579,6 +647,7 @@ export default function AdminDashboard() {
                 )
               }
             />
+
 
             <ManagementCard
               icon={
@@ -598,6 +667,7 @@ export default function AdminDashboard() {
           </div>
 
         </section>
+
 
         {/* ====================================================
             MAIN STATISTICS
@@ -632,6 +702,7 @@ export default function AdminDashboard() {
               }
             />
 
+
             <StatCard
               icon={
                 <Users size={21} />
@@ -641,6 +712,7 @@ export default function AdminDashboard() {
                 statistics.totalUsers
               }
             />
+
 
             <StatCard
               icon={
@@ -652,9 +724,12 @@ export default function AdminDashboard() {
               }
             />
 
+
             <StatCard
               icon={
-                <Package size={21} />
+                <Package
+                  size={21}
+                />
               }
               label="Revenue"
               value={`₹${statistics.revenue.toFixed(
@@ -665,6 +740,7 @@ export default function AdminDashboard() {
           </div>
 
         </section>
+
 
         {/* ====================================================
             MENU OVERVIEW
@@ -690,6 +766,7 @@ export default function AdminDashboard() {
 
             </div>
 
+
             <button
               type="button"
               onClick={() =>
@@ -699,8 +776,13 @@ export default function AdminDashboard() {
               }
               className="flex items-center gap-2 self-start rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
             >
+
               Manage Menu
-              <ArrowRight size={16} />
+
+              <ArrowRight
+                size={16}
+              />
+
             </button>
 
           </div>
@@ -710,13 +792,16 @@ export default function AdminDashboard() {
 
             <StatCard
               icon={
-                <Store size={21} />
+                <Store
+                  size={21}
+                />
               }
               label="Total Menu Items"
               value={
                 statistics.totalMenuItems
               }
             />
+
 
             <StatCard
               icon={
@@ -730,9 +815,12 @@ export default function AdminDashboard() {
               }
             />
 
+
             <StatCard
               icon={
-                <Clock3 size={21} />
+                <Clock3
+                  size={21}
+                />
               }
               label="Low Stock"
               value={
@@ -740,9 +828,12 @@ export default function AdminDashboard() {
               }
             />
 
+
             <StatCard
               icon={
-                <XCircle size={21} />
+                <XCircle
+                  size={21}
+                />
               }
               label="Out of Stock"
               value={
@@ -753,6 +844,7 @@ export default function AdminDashboard() {
           </div>
 
         </section>
+
 
         {/* ====================================================
             ORDER STATUS
@@ -781,10 +873,13 @@ export default function AdminDashboard() {
                 statistics.pending
               }
               icon={
-                <Clock3 size={20} />
+                <Clock3
+                  size={20}
+                />
               }
               className="bg-yellow-50 text-yellow-700"
             />
+
 
             <StatusCard
               label="Confirmed"
@@ -799,6 +894,7 @@ export default function AdminDashboard() {
               className="bg-purple-50 text-[#32145f]"
             />
 
+
             <StatusCard
               label="Completed"
               value={
@@ -812,13 +908,16 @@ export default function AdminDashboard() {
               className="bg-green-50 text-green-700"
             />
 
+
             <StatusCard
               label="Cancelled"
               value={
                 statistics.cancelled
               }
               icon={
-                <XCircle size={20} />
+                <XCircle
+                  size={20}
+                />
               }
               className="bg-red-50 text-red-600"
             />
@@ -826,6 +925,7 @@ export default function AdminDashboard() {
           </div>
 
         </section>
+
 
         {/* ====================================================
             LOW STOCK
@@ -847,6 +947,7 @@ export default function AdminDashboard() {
 
             </div>
 
+
             <button
               type="button"
               onClick={() =>
@@ -856,8 +957,13 @@ export default function AdminDashboard() {
               }
               className="flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f]"
             >
+
               Manage Stock
-              <ArrowRight size={16} />
+
+              <ArrowRight
+                size={16}
+              />
+
             </button>
 
           </div>
@@ -912,9 +1018,11 @@ export default function AdminDashboard() {
                         />
                       ) : (
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
+
                           <Store
                             size={20}
                           />
+
                         </div>
                       )}
 
@@ -952,6 +1060,7 @@ export default function AdminDashboard() {
                           : `${item.stock} left`}
                       </span>
 
+
                       <button
                         type="button"
                         onClick={() =>
@@ -974,10 +1083,10 @@ export default function AdminDashboard() {
               )}
 
             </div>
-
           )}
 
         </section>
+
 
         {/* ====================================================
             RECENT ORDERS
@@ -999,6 +1108,7 @@ export default function AdminDashboard() {
 
             </div>
 
+
             <button
               type="button"
               onClick={() =>
@@ -1009,7 +1119,11 @@ export default function AdminDashboard() {
               className="flex items-center justify-center gap-2 self-start rounded-xl border border-purple-100 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-[#32145f] transition hover:bg-purple-100"
             >
               View All Orders
-              <ArrowRight size={16} />
+
+              <ArrowRight
+                size={16}
+              />
+
             </button>
 
           </div>
@@ -1069,6 +1183,7 @@ export default function AdminDashboard() {
 
                 </thead>
 
+
                 <tbody className="divide-y divide-gray-100">
 
                   {recentOrders.map(
@@ -1092,6 +1207,7 @@ export default function AdminDashboard() {
                           0,
                         ) ?? 0;
 
+
                       return (
                         <tr
                           key={order.id}
@@ -1105,6 +1221,7 @@ export default function AdminDashboard() {
                             </span>
 
                           </td>
+
 
                           <td className="px-6 py-5">
 
@@ -1124,9 +1241,11 @@ export default function AdminDashboard() {
 
                           </td>
 
+
                           <td className="px-6 py-5 text-sm text-gray-500">
                             {itemCount}
                           </td>
+
 
                           <td className="px-6 py-5 font-semibold text-[#32145f]">
                             ₹
@@ -1138,6 +1257,7 @@ export default function AdminDashboard() {
                             )}
                           </td>
 
+
                           <td className="px-6 py-5">
 
                             <OrderStatus
@@ -1147,6 +1267,7 @@ export default function AdminDashboard() {
                             />
 
                           </td>
+
 
                           <td className="px-6 py-5 text-sm text-gray-400">
                             {new Date(
@@ -1164,10 +1285,10 @@ export default function AdminDashboard() {
               </table>
 
             </div>
-
           )}
 
         </section>
+
 
         {/* ====================================================
             CUSTOMERS
@@ -1190,6 +1311,7 @@ export default function AdminDashboard() {
                 </p>
 
               </div>
+
 
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
 
@@ -1236,6 +1358,7 @@ export default function AdminDashboard() {
 
                     </div>
 
+
                     <div className="flex items-center gap-3">
 
                       <span className="rounded-full border border-purple-100 bg-purple-50 px-3 py-1 text-xs font-semibold capitalize text-[#32145f]">
@@ -1278,16 +1401,20 @@ export default function AdminDashboard() {
                 }
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[#32145f] hover:underline"
               >
+
                 View All Customers
+
                 <ArrowRight
                   size={16}
                 />
+
               </button>
 
             </div>
           )}
 
         </section>
+
 
         {/* ====================================================
             MENU QUICK LINK
@@ -1306,6 +1433,7 @@ export default function AdminDashboard() {
                 />
 
               </div>
+
 
               <div>
 
@@ -1343,15 +1471,19 @@ export default function AdminDashboard() {
               }
               className="flex items-center justify-center gap-2 rounded-xl bg-[#32145f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
             >
+
               Open Menu Management
+
               <ArrowRight
                 size={17}
               />
+
             </button>
 
           </div>
 
         </section>
+
 
         {/* ====================================================
             ACTIVITY QUICK LINK
@@ -1370,6 +1502,7 @@ export default function AdminDashboard() {
                 />
 
               </div>
+
 
               <div>
 
@@ -1399,15 +1532,80 @@ export default function AdminDashboard() {
               }
               className="flex items-center justify-center gap-2 rounded-xl bg-[#32145f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
             >
+
               Open Activity
+
               <ArrowRight
                 size={17}
               />
+
             </button>
 
           </div>
 
         </section>
+
+
+        {/* ====================================================
+            ADMIN PROFILE QUICK LINK
+        ==================================================== */}
+
+        <section className="mt-8 rounded-3xl border border-purple-100 bg-white p-6 shadow-sm">
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-center gap-4">
+
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-[#32145f]">
+
+                <Users
+                  size={23}
+                />
+
+              </div>
+
+
+              <div>
+
+                <p className="text-sm font-medium text-[#32145f]">
+                  Account Settings
+                </p>
+
+                <h2 className="mt-1 font-bold text-[#24113f]">
+                  Admin Profile
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Update your personal information and change your password.
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/admin/profile",
+                )
+              }
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#32145f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#421b7a]"
+            >
+
+              Open Admin Profile
+
+              <ArrowRight
+                size={17}
+              />
+
+            </button>
+
+          </div>
+
+        </section>
+
 
         {/* ====================================================
             BACK TO CUSTOMER DASHBOARD
@@ -1435,6 +1633,7 @@ export default function AdminDashboard() {
   );
 }
 
+
 /* ============================================================
    MANAGEMENT CARD
 ============================================================ */
@@ -1453,7 +1652,9 @@ function ManagementCard({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className="group rounded-2xl border border-gray-100 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-purple-100 hover:shadow-md"
     >
 
@@ -1470,9 +1671,11 @@ function ManagementCard({
 
       </div>
 
+
       <h3 className="mt-5 font-bold text-[#24113f]">
         {title}
       </h3>
+
 
       <p className="mt-2 text-xs leading-5 text-gray-400">
         {description}
@@ -1481,6 +1684,7 @@ function ManagementCard({
     </button>
   );
 }
+
 
 /* ============================================================
    STAT CARD
@@ -1502,9 +1706,11 @@ function StatCard({
         {icon}
       </div>
 
+
       <p className="mt-5 text-sm text-gray-400">
         {label}
       </p>
+
 
       <p className="mt-1 text-2xl font-bold text-[#24113f]">
         {value}
@@ -1513,6 +1719,7 @@ function StatCard({
     </div>
   );
 }
+
 
 /* ============================================================
    STATUS CARD
@@ -1544,6 +1751,7 @@ function StatusCard({
 
       </div>
 
+
       <p className="mt-4 text-3xl font-bold">
         {value}
       </p>
@@ -1551,6 +1759,7 @@ function StatusCard({
     </div>
   );
 }
+
 
 /* ============================================================
    ORDER STATUS
@@ -1564,6 +1773,7 @@ function OrderStatus({
   const normalized =
     status?.toLowerCase() ||
     "unknown";
+
 
   const styles: Record<
     string,
@@ -1582,25 +1792,37 @@ function OrderStatus({
       "bg-red-50 text-red-600 border-red-100",
   };
 
+
   const labels: Record<
     string,
     string
   > = {
-    pending: "Pending",
-    confirmed: "Confirmed",
-    completed: "Completed",
-    cancelled: "Cancelled",
+    pending:
+      "Pending",
+
+    confirmed:
+      "Confirmed",
+
+    completed:
+      "Completed",
+
+    cancelled:
+      "Cancelled",
   };
+
 
   return (
     <span
       className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${
-        styles[normalized] ||
+        styles[
+          normalized
+        ] ||
         "border-gray-100 bg-gray-50 text-gray-500"
       }`}
     >
-      {labels[normalized] ||
-        status}
+      {labels[
+        normalized
+      ] || status}
     </span>
   );
 }

@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.database import get_db
 from app.models import User
+
 from app.schemas.token import Token
+
 from app.schemas.user import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -13,6 +15,7 @@ from app.schemas.user import (
     UserCreate,
     UserOut,
 )
+
 from app.services.auth_service import AuthService
 
 
@@ -65,13 +68,16 @@ def login(
     response_model=UserOut,
 )
 def me(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ) -> User:
     return current_user
 
 
 # ============================================================
 # CHANGE PASSWORD
+# CUSTOMER / STAFF / ADMIN
 # ============================================================
 
 @router.post(
@@ -80,7 +86,9 @@ def me(
 )
 def change_password(
     data: ChangePasswordRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
     return AuthService(db).change_password(
