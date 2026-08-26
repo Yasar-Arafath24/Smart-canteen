@@ -8,7 +8,6 @@ import {
   LineChart as LineChartIcon,
   Loader2,
   Package,
-  PieChart as PieChartIcon,
   RefreshCw,
   ShoppingBag,
   TrendingUp,
@@ -49,14 +48,20 @@ import { api } from "../../api/client";
    COLORS
 ============================================================ */
 
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_COLORS: Record<
+  string,
+  string
+> = {
   Pending: "#f59e0b",
   Confirmed: "#3b82f6",
   Completed: "#10b981",
   Cancelled: "#ef4444",
 };
 
-const INVENTORY_COLORS: Record<string, string> = {
+const INVENTORY_COLORS: Record<
+  string,
+  string
+> = {
   "In Stock": "#10b981",
   "Low Stock": "#f59e0b",
   "Out of Stock": "#ef4444",
@@ -116,7 +121,6 @@ type ChartKey =
   | "cancellation"
   | "inventory";
 
-
 interface ChartOption {
   key: ChartKey;
   title: string;
@@ -137,6 +141,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Revenue from non-cancelled orders.",
     icon: <TrendingUp size={17} />,
   },
+
   {
     key: "orders",
     title: "Orders Trend",
@@ -144,6 +149,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Orders created over time.",
     icon: <ShoppingBag size={17} />,
   },
+
   {
     key: "status",
     title: "Order Status",
@@ -151,6 +157,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Current order status distribution.",
     icon: <Activity size={17} />,
   },
+
   {
     key: "daily-sales",
     title: "Daily Sales",
@@ -158,6 +165,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Daily revenue performance.",
     icon: <BarChart3 size={17} />,
   },
+
   {
     key: "weekly-sales",
     title: "Weekly Sales",
@@ -165,6 +173,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Revenue grouped by week.",
     icon: <LineChartIcon size={17} />,
   },
+
   {
     key: "monthly-sales",
     title: "Monthly Sales",
@@ -172,6 +181,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Monthly revenue comparison.",
     icon: <BarChart3 size={17} />,
   },
+
   {
     key: "top-items",
     title: "Top Menu Items",
@@ -179,6 +189,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Most ordered foods by quantity.",
     icon: <ShoppingBag size={17} />,
   },
+
   {
     key: "item-revenue",
     title: "Revenue by Item",
@@ -186,6 +197,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Menu items generating the most revenue.",
     icon: <TrendingUp size={17} />,
   },
+
   {
     key: "customers",
     title: "Orders by Customer",
@@ -193,6 +205,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Customers with the highest order counts.",
     icon: <Users size={17} />,
   },
+
   {
     key: "average-order",
     title: "Average Order Value",
@@ -200,6 +213,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Average revenue per non-cancelled order.",
     icon: <BarChart3 size={17} />,
   },
+
   {
     key: "cancellation",
     title: "Cancellation Rate",
@@ -207,6 +221,7 @@ const CHART_OPTIONS: ChartOption[] = [
       "Daily percentage of cancelled orders.",
     icon: <XCircle size={17} />,
   },
+
   {
     key: "inventory",
     title: "Inventory Status",
@@ -250,7 +265,9 @@ async function loadAnalyticsData() {
    HELPERS
 ============================================================ */
 
-function currency(value: number) {
+function currency(
+  value: number,
+) {
   return `₹${Number(
     value || 0,
   ).toFixed(2)}`;
@@ -281,7 +298,9 @@ function getStartDate(
   return date;
 }
 
-function dateKey(date: Date) {
+function dateKey(
+  date: Date,
+) {
   return date
     .toISOString()
     .slice(0, 10);
@@ -309,80 +328,131 @@ function displayDate(
 export default function AdminAnalytics() {
   const navigate = useNavigate();
 
-  const [orders, setOrders] =
-    useState<Order[]>([]);
+  const [
+    orders,
+    setOrders,
+  ] = useState<Order[]>([]);
 
-  const [menuItems, setMenuItems] =
-    useState<MenuItem[]>([]);
+  const [
+    menuItems,
+    setMenuItems,
+  ] = useState<MenuItem[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [refreshing, setRefreshing] =
-    useState(false);
+  const [
+    refreshing,
+    setRefreshing,
+  ] = useState(false);
 
-  const [error, setError] =
-    useState("");
+  const [
+    error,
+    setError,
+  ] = useState("");
 
-  const [success, setSuccess] =
-    useState("");
+  const [
+    success,
+    setSuccess,
+  ] = useState("");
 
-  const [range, setRange] =
-    useState<RangeOption>("30");
+  const [
+    range,
+    setRange,
+  ] = useState<RangeOption>("30");
 
-  const [selectedChart, setSelectedChart] =
-    useState<ChartKey>("revenue");
+  const [
+    selectedChart,
+    setSelectedChart,
+  ] = useState<ChartKey>(
+    "revenue",
+  );
 
-  const [lastUpdated, setLastUpdated] =
-    useState<Date | null>(null);
+  const [
+    lastUpdated,
+    setLastUpdated,
+  ] = useState<Date | null>(
+    null,
+  );
 
 
   /* ==========================================================
      LOAD DATA
   ========================================================== */
 
-  const loadData = useCallback(
-    async (
-      initialLoad = false,
-    ) => {
-      try {
-        if (initialLoad) {
-          setLoading(true);
-        } else {
-          setRefreshing(true);
-        }
+  const loadData =
+    useCallback(
+      async (
+        initialLoad = false,
+      ) => {
+        try {
+          if (initialLoad) {
+            setLoading(true);
+          } else {
+            setRefreshing(true);
+          }
 
-        setError("");
+          setError("");
 
-        const data =
-          await loadAnalyticsData();
+          const data =
+            await loadAnalyticsData();
 
-        setOrders(data.orders);
-        setMenuItems(data.menuItems);
+          setOrders(
+            data.orders,
+          );
 
-        setLastUpdated(
-          new Date(),
-        );
-      } catch (err: any) {
-        console.error(
-          "Analytics error:",
-          err,
-        );
+          setMenuItems(
+            data.menuItems,
+          );
 
-        setError(
-          err?.response?.data
-            ?.detail ||
+          setLastUpdated(
+            new Date(),
+          );
+        } catch (err: any) {
+          console.error(
+            "Analytics error:",
+            err,
+          );
+
+          setError(
             err?.response?.data
-              ?.message ||
-            "Unable to load analytics.",
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [],
-  );
+              ?.detail ||
+              err?.response?.data
+                ?.message ||
+              "Unable to load analytics.",
+          );
+        } finally {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      },
+      [],
+    );
+
+
+  /* ==========================================================
+     INITIAL LOAD
+  ========================================================== */
+
+  useEffect(() => {
+    void loadData(true);
+
+    const interval =
+      window.setInterval(
+        () => {
+          void loadData(false);
+        },
+        5000,
+      );
+
+    return () => {
+      window.clearInterval(
+        interval,
+      );
+    };
+  }, [loadData]);
 
 
   /* ==========================================================
@@ -411,11 +481,10 @@ export default function AdminAnalytics() {
         ? "wss:"
         : "ws:";
 
-    const host =
-      apiBase.replace(
-        /^https?:\/\//,
-        "",
-      );
+    const host = apiBase.replace(
+      /^https?:\/\//,
+      "",
+    );
 
     const socket =
       new WebSocket(
@@ -429,7 +498,7 @@ export default function AdminAnalytics() {
     };
 
     socket.onmessage = () => {
-      loadData(false);
+      void loadData(false);
     };
 
     socket.onerror = (
@@ -449,29 +518,6 @@ export default function AdminAnalytics() {
 
     return () => {
       socket.close();
-    };
-  }, [loadData]);
-
-
-  /* ==========================================================
-     INITIAL LOAD + AUTO REFRESH
-  ========================================================== */
-
-  useEffect(() => {
-    loadData(true);
-
-    const interval =
-      window.setInterval(
-        () => {
-          loadData(false);
-        },
-        5000,
-      );
-
-    return () => {
-      window.clearInterval(
-        interval,
-      );
     };
   }, [loadData]);
 
@@ -698,10 +744,9 @@ export default function AdminAnalytics() {
         )
         .map((row) => ({
           ...row,
-          label:
-            displayDate(
-              row.date,
-            ),
+          label: displayDate(
+            row.date,
+          ),
         }));
     }, [filteredOrders]);
 
@@ -726,19 +771,23 @@ export default function AdminAnalytics() {
   const statusChart = [
     {
       name: "Pending",
-      value: summary.pending,
+      value:
+        summary.pending,
     },
     {
       name: "Confirmed",
-      value: summary.confirmed,
+      value:
+        summary.confirmed,
     },
     {
       name: "Completed",
-      value: summary.completed,
+      value:
+        summary.completed,
     },
     {
       name: "Cancelled",
-      value: summary.cancelled,
+      value:
+        summary.cancelled,
     },
   ];
 
@@ -812,15 +861,14 @@ export default function AdminAnalytics() {
       return Array.from(
         map.entries(),
       )
-        .sort(([a], [b]) =>
-          a.localeCompare(b),
+        .sort(
+          ([a], [b]) =>
+            a.localeCompare(b),
         )
         .map(
           ([key, revenue]) => ({
             label:
-              displayDate(
-                key,
-              ),
+              displayDate(key),
             revenue,
           }),
         );
@@ -862,13 +910,16 @@ export default function AdminAnalytics() {
       return Array.from(
         map.entries(),
       )
-        .sort(([a], [b]) =>
-          a.localeCompare(b),
+        .sort(
+          ([a], [b]) =>
+            a.localeCompare(b),
         )
         .map(
           ([key, revenue]) => {
-            const [year, month] =
-              key.split("-");
+            const [
+              year,
+              month,
+            ] = key.split("-");
 
             const label =
               new Date(
@@ -955,23 +1006,21 @@ export default function AdminAnalytics() {
             a.quantity,
         )
         .slice(0, 10)
-        .map(
-          (item) => {
-            const menu =
-              menuItems.find(
-                (menuItem) =>
-                  menuItem.id ===
-                  item.menuItemId,
-              );
+        .map((item) => {
+          const menu =
+            menuItems.find(
+              (menuItem) =>
+                menuItem.id ===
+                item.menuItemId,
+            );
 
-            return {
-              ...item,
-              name:
-                menu?.name ||
-                `Menu Item #${item.menuItemId}`,
-            };
-          },
-        );
+          return {
+            ...item,
+            name:
+              menu?.name ||
+              `Menu Item #${item.menuItemId}`,
+          };
+        });
     }, [
       revenueOrders,
       menuItems,
@@ -1082,7 +1131,8 @@ export default function AdminAnalytics() {
                     );
 
                   return (
-                    key === row.date &&
+                    key ===
+                      row.date &&
                     order.status
                       .toLowerCase() ===
                       "cancelled"
@@ -1149,7 +1199,8 @@ export default function AdminAnalytics() {
         },
         {
           name: "Out of Stock",
-          value: outOfStock,
+          value:
+            outOfStock,
         },
       ];
     }, [menuItems]);
@@ -1175,13 +1226,18 @@ export default function AdminAnalytics() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fafafa]">
+
         <div className="flex items-center gap-3 text-sm text-gray-400">
+
           <Loader2
             size={20}
             className="animate-spin"
           />
+
           Loading analytics...
+
         </div>
+
       </div>
     );
   }
@@ -1212,6 +1268,7 @@ export default function AdminAnalytics() {
                 )
               }
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-purple-100 hover:text-[#32145f]"
+              title="Back to admin dashboard"
             >
               <ArrowLeft
                 size={18}
@@ -1227,8 +1284,11 @@ export default function AdminAnalytics() {
                 </p>
 
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700">
+
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+
                   LIVE
+
                 </span>
 
               </div>
@@ -1250,10 +1310,13 @@ export default function AdminAnalytics() {
 
             {lastUpdated && (
               <span className="hidden text-xs text-gray-400 md:block">
+
                 Updated{" "}
+
                 {lastUpdated.toLocaleTimeString(
                   "en-IN",
                 )}
+
               </span>
             )}
 
@@ -1262,9 +1325,12 @@ export default function AdminAnalytics() {
               onClick={
                 handleRefresh
               }
-              disabled={refreshing}
+              disabled={
+                refreshing
+              }
               className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-purple-100 hover:text-[#32145f] disabled:opacity-50"
             >
+
               <RefreshCw
                 size={17}
                 className={
@@ -1274,7 +1340,10 @@ export default function AdminAnalytics() {
                 }
               />
 
-              Refresh
+              {refreshing
+                ? "Refreshing..."
+                : "Refresh"}
+
             </button>
 
           </div>
@@ -1315,12 +1384,17 @@ export default function AdminAnalytics() {
               onClick={() =>
                 setError("")
               }
+              className="rounded-lg p-1 transition hover:bg-red-100"
+              aria-label="Close error"
             >
-              <X size={18} />
+              <X
+                size={18}
+              />
             </button>
 
           </div>
         )}
+
 
         {success && (
           <div className="mb-6 rounded-2xl border border-green-100 bg-green-50 p-4 text-sm font-semibold text-green-700">
@@ -1353,15 +1427,18 @@ export default function AdminAnalytics() {
 
             </div>
 
+
             <select
               value={range}
               onChange={(event) =>
                 setRange(
-                  event.target.value as RangeOption,
+                  event.target
+                    .value as RangeOption,
                 )
               }
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-600 outline-none focus:border-purple-200 focus:ring-2 focus:ring-purple-50 lg:w-auto"
             >
+
               <option value="7">
                 Last 7 Days
               </option>
@@ -1377,6 +1454,7 @@ export default function AdminAnalytics() {
               <option value="all">
                 All Time
               </option>
+
             </select>
 
           </div>
@@ -1453,7 +1531,9 @@ export default function AdminAnalytics() {
               summary.pending
             }
             icon={
-              <Clock3 size={18} />
+              <Clock3
+                size={18}
+              />
             }
             className="text-yellow-700"
           />
@@ -1506,8 +1586,6 @@ export default function AdminAnalytics() {
 
         <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
 
-          {/* SECTION HEADER */}
-
           <div className="border-b border-gray-100 p-5">
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1545,13 +1623,16 @@ export default function AdminAnalytics() {
 
                 {CHART_OPTIONS.map(
                   (chart) => {
+
                     const active =
                       selectedChart ===
                       chart.key;
 
                     return (
                       <button
-                        key={chart.key}
+                        key={
+                          chart.key
+                        }
                         type="button"
                         onClick={() =>
                           setSelectedChart(
@@ -1574,6 +1655,7 @@ export default function AdminAnalytics() {
                         >
                           {chart.icon}
                         </span>
+
 
                         <span className="min-w-0">
 
@@ -1644,7 +1726,8 @@ export default function AdminAnalytics() {
                   </div>
 
                   <span className="hidden rounded-full bg-purple-50 px-3 py-1.5 text-xs font-semibold text-[#32145f] sm:inline-flex">
-                    {range === "all"
+                    {range ===
+                    "all"
                       ? "All Time"
                       : `Last ${range} Days`}
                   </span>
@@ -1656,17 +1739,23 @@ export default function AdminAnalytics() {
 
               <div className="h-[420px] w-full">
 
+                {/* ==================================================
+                    REVENUE
+                ================================================== */}
+
                 {selectedChart ===
                   "revenue" && (
                   <ResponsiveContainer
                     width="100%"
                     height="100%"
                   >
+
                     <LineChart
                       data={
                         revenueTrend
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -1696,17 +1785,21 @@ export default function AdminAnalytics() {
                         dataKey="revenue"
                         name="Revenue"
                         stroke="#32145f"
-                        strokeWidth={
-                          3
-                        }
+                        strokeWidth={3}
                         dot={{
                           r: 3,
                         }}
                       />
+
                     </LineChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    ORDERS
+                ================================================== */}
 
                 {selectedChart ===
                   "orders" && (
@@ -1714,11 +1807,13 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <BarChart
                       data={
                         ordersTrend
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -1742,10 +1837,16 @@ export default function AdminAnalytics() {
                         name="Orders"
                         fill="#32145f"
                       />
+
                     </BarChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    STATUS
+                ================================================== */}
 
                 {selectedChart ===
                   "status" && (
@@ -1753,7 +1854,9 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <PieChart>
+
                       <Pie
                         data={
                           statusChart
@@ -1767,10 +1870,9 @@ export default function AdminAnalytics() {
                         }
                         label
                       >
+
                         {statusChart.map(
-                          (
-                            entry,
-                          ) => (
+                          (entry) => (
                             <Cell
                               key={
                                 entry.name
@@ -1785,15 +1887,21 @@ export default function AdminAnalytics() {
                             />
                           ),
                         )}
+
                       </Pie>
 
                       <Tooltip />
-
                       <Legend />
+
                     </PieChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    DAILY
+                ================================================== */}
 
                 {selectedChart ===
                   "daily-sales" && (
@@ -1801,11 +1909,13 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <BarChart
                       data={
                         dailySales
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -1833,10 +1943,16 @@ export default function AdminAnalytics() {
                         name="Sales"
                         fill="#32145f"
                       />
+
                     </BarChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    WEEKLY
+                ================================================== */}
 
                 {selectedChart ===
                   "weekly-sales" && (
@@ -1844,11 +1960,13 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <LineChart
                       data={
                         weeklySales
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -1876,14 +1994,18 @@ export default function AdminAnalytics() {
                         dataKey="revenue"
                         name="Weekly Revenue"
                         stroke="#32145f"
-                        strokeWidth={
-                          3
-                        }
+                        strokeWidth={3}
                       />
+
                     </LineChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    MONTHLY
+                ================================================== */}
 
                 {selectedChart ===
                   "monthly-sales" && (
@@ -1891,11 +2013,13 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <BarChart
                       data={
                         monthlySales
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -1923,10 +2047,16 @@ export default function AdminAnalytics() {
                         name="Revenue"
                         fill="#32145f"
                       />
+
                     </BarChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    TOP ITEMS
+                ================================================== */}
 
                 {selectedChart ===
                   "top-items" && (
@@ -1934,16 +2064,16 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <BarChart
-                      data={
-                        topItems
-                      }
+                      data={topItems}
                       layout="vertical"
                       margin={{
                         left: 20,
                         right: 20,
                       }}
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -1965,10 +2095,16 @@ export default function AdminAnalytics() {
                         name="Quantity Sold"
                         fill="#32145f"
                       />
+
                     </BarChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    ITEM REVENUE
+                ================================================== */}
 
                 {selectedChart ===
                   "item-revenue" && (
@@ -1976,6 +2112,7 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <BarChart
                       data={
                         itemRevenue
@@ -1986,6 +2123,7 @@ export default function AdminAnalytics() {
                         right: 20,
                       }}
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -2017,10 +2155,16 @@ export default function AdminAnalytics() {
                         name="Revenue"
                         fill="#32145f"
                       />
+
                     </BarChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    CUSTOMERS
+                ================================================== */}
 
                 {selectedChart ===
                   "customers" && (
@@ -2028,11 +2172,13 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <BarChart
                       data={
                         customerOrders
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -2054,10 +2200,16 @@ export default function AdminAnalytics() {
                         name="Orders"
                         fill="#32145f"
                       />
+
                     </BarChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    AVERAGE ORDER
+                ================================================== */}
 
                 {selectedChart ===
                   "average-order" && (
@@ -2065,11 +2217,13 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <LineChart
                       data={
                         averageOrderTrend
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -2097,14 +2251,18 @@ export default function AdminAnalytics() {
                         dataKey="average"
                         name="Average Order"
                         stroke="#32145f"
-                        strokeWidth={
-                          3
-                        }
+                        strokeWidth={3}
                       />
+
                     </LineChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    CANCELLATION
+                ================================================== */}
 
                 {selectedChart ===
                   "cancellation" && (
@@ -2112,11 +2270,13 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <LineChart
                       data={
                         cancellationTrend
                       }
                     >
+
                       <CartesianGrid
                         strokeDasharray="3 3"
                       />
@@ -2144,14 +2304,18 @@ export default function AdminAnalytics() {
                         dataKey="rate"
                         name="Cancellation %"
                         stroke="#dc2626"
-                        strokeWidth={
-                          3
-                        }
+                        strokeWidth={3}
                       />
+
                     </LineChart>
+
                   </ResponsiveContainer>
                 )}
 
+
+                {/* ==================================================
+                    INVENTORY
+                ================================================== */}
 
                 {selectedChart ===
                   "inventory" && (
@@ -2159,7 +2323,9 @@ export default function AdminAnalytics() {
                     width="100%"
                     height="100%"
                   >
+
                     <PieChart>
+
                       <Pie
                         data={
                           inventoryStatus
@@ -2173,10 +2339,9 @@ export default function AdminAnalytics() {
                         }
                         label
                       >
+
                         {inventoryStatus.map(
-                          (
-                            entry,
-                          ) => (
+                          (entry) => (
                             <Cell
                               key={
                                 entry.name
@@ -2191,12 +2356,14 @@ export default function AdminAnalytics() {
                             />
                           ),
                         )}
+
                       </Pie>
 
                       <Tooltip />
-
                       <Legend />
+
                     </PieChart>
+
                   </ResponsiveContainer>
                 )}
 
@@ -2235,6 +2402,7 @@ export default function AdminAnalytics() {
 
             </div>
 
+
             <button
               type="button"
               onClick={() =>
@@ -2244,10 +2412,13 @@ export default function AdminAnalytics() {
               }
               className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-white px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
             >
+
               <ArrowLeft
                 size={17}
               />
+
               Admin Dashboard
+
             </button>
 
           </div>

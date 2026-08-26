@@ -1,8 +1,19 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.db.database import Base
 from app.utils.time import utcnow
@@ -60,32 +71,73 @@ class Payment(Base):
         default="razorpay",
     )
 
-    # Razorpay order created on the backend
-    razorpay_order_id: Mapped[Optional[str]] = mapped_column(
+    # ========================================================
+    # RAZORPAY NORMAL CHECKOUT
+    # ========================================================
+
+    razorpay_order_id: Mapped[
+        Optional[str]
+    ] = mapped_column(
         String(100),
         nullable=True,
         unique=True,
         index=True,
     )
 
-    # Razorpay payment returned by Checkout
-    razorpay_payment_id: Mapped[Optional[str]] = mapped_column(
+    razorpay_payment_id: Mapped[
+        Optional[str]
+    ] = mapped_column(
         String(100),
         nullable=True,
         unique=True,
         index=True,
     )
 
-    # Signature returned by Checkout
-    razorpay_signature: Mapped[Optional[str]] = mapped_column(
+    razorpay_signature: Mapped[
+        Optional[str]
+    ] = mapped_column(
         String(255),
         nullable=True,
     )
 
-    # Kept for compatibility with your existing frontend/API.
-    # For successful Razorpay payments this stores the
-    # Razorpay payment ID.
-    transaction_id: Mapped[Optional[str]] = mapped_column(
+    # ========================================================
+    # UPI QR
+    # ========================================================
+
+    razorpay_qr_id: Mapped[
+        Optional[str]
+    ] = mapped_column(
+        String(100),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    # UPI URI returned by Razorpay.
+    # Example:
+    # upi://pay?pa=...&pn=...&am=...&cu=INR
+    razorpay_qr_content: Mapped[
+        Optional[str]
+    ] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    # Razorpay hosted QR/payment URL.
+    razorpay_qr_image_url: Mapped[
+        Optional[str]
+    ] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    # ========================================================
+    # GENERAL TRANSACTION DATA
+    # ========================================================
+
+    transaction_id: Mapped[
+        Optional[str]
+    ] = mapped_column(
         String(100),
         nullable=True,
         unique=True,
@@ -103,6 +155,10 @@ class Payment(Base):
         default=utcnow,
         onupdate=utcnow,
     )
+
+    # ========================================================
+    # RELATIONSHIPS
+    # ========================================================
 
     order: Mapped["Order"] = relationship(
         "Order",

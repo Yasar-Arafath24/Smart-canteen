@@ -27,22 +27,16 @@ from app.models.razorpay_webhook import (
 from app.models.user import User
 from app.schemas.payment import (
     PaymentCreate,
+    PaymentQRResponse,
     PaymentResponse,
     PaymentVerify,
 )
-from app.utils.time import utcnow
-
-
-# ============================================================
-# TEMPORARY CONFIGURATION CHECK
-# Remove this print after payment setup is complete.
-# ============================================================
-
-print(
-    "Razorpay configured:",
-    bool(settings.RAZORPAY_KEY_ID),
-    bool(settings.RAZORPAY_KEY_SECRET),
+from app.services.razorpay_service import (
+    RazorpayServiceError,
+    create_upi_qr,
+    fetch_qr,
 )
+from app.utils.time import utcnow
 
 
 router = APIRouter(
@@ -52,7 +46,7 @@ router = APIRouter(
 
 
 # ============================================================
-# CREATE RAZORPAY PAYMENT
+# CREATE NORMAL RAZORPAY PAYMENT
 # ============================================================
 
 @router.post(
@@ -63,7 +57,7 @@ router = APIRouter(
 def create(
     payment_data: PaymentCreate,
     current_user: User = Depends(
-        get_current_user
+        get_current_user,
     ),
     db: Session = Depends(get_db),
 ):
@@ -74,11 +68,9 @@ def create(
     )
 
     response = PaymentResponse.model_validate(
-        payment
+        payment,
     )
 
-    # The Key ID is safe to send to the frontend.
-    # The Key Secret is NEVER returned.
     response.razorpay_key_id = (
         settings.RAZORPAY_KEY_ID
     )
@@ -87,7 +79,7 @@ def create(
 
 
 # ============================================================
-# GET PAYMENT FOR ONE ORDER
+# GET PAYMENT BY ORDER
 # ============================================================
 
 @router.get(
@@ -97,7 +89,7 @@ def create(
 def get_order_payment(
     order_id: int,
     current_user: User = Depends(
-        get_current_user
+        get_current_user,
     ),
     db: Session = Depends(get_db),
 ):
@@ -124,11 +116,225 @@ def get_order_payment(
             ),
         )
 
-    return payment
+    response = PaymentResponse.model_validate(
+        payment,
+    )
+
+    response.razorpay_key_id = (
+        settings.RAZORPAY_KEY_ID
+    )
+
+    return response
 
 
 # ============================================================
-# VERIFY FRONTEND RAZORPAY PAYMENT
+# CREATE UPI QR PAYMENT
+# ============================================================
+
+@router.post(
+    "/{payment_id}/qr",
+    response_model=PaymentQRResponse,
+)
+async def create_payment_qr(
+    payment_id: int,
+    current_user: User = Depends(
+        get_current_user,
+    ),
+    db: Session = Depends(get_db),
+):
+    payment = (
+        db.query(Payment)
+        .filter(
+            Payment.id == payment_id,
+        )
+        .first()
+    )
+
+    if not payment:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment not found",
+        )
+
+    if payment.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Not authorized to create "
+                "this payment QR code."
+            ),
+        )
+
+    if payment.status == "paid":
+        raise HTTPException(
+            status_code=400,
+            detail="Payment is already completed.",
+        )
+
+    # --------------------------------------------------------
+    # Reuse existing active QR if available
+    # --------------------------------------------------------
+
+    if payment.razorpay_qr_id:
+        try:
+            qr = await fetch_qr(
+                payment.razorpay_qr_id,
+            )
+
+            if qr.get("status") == "active":
+                return PaymentQRResponse(
+                    payment_id=payment.id,
+                    order_id=payment.order_id,
+                    amount=float(payment.amount),
+                    status=payment.status,
+                    payment_method="upi_qr",
+                    qr_id=payment.razorpay_qr_id,
+                    qr_content=(
+                        payment.razorpay_qr_content
+                    ),
+                    qr_image_url=(
+                        payment.razorpay_qr_image_url
+                    ),
+                    razorpay_key_id=(
+                        settings.RAZORPAY_KEY_ID
+                    ),
+                )
+
+        except RazorpayServiceError:
+            # Create a fresh QR below.
+            pass
+
+    # --------------------------------------------------------
+    # Create new Razorpay UPI QR
+    # --------------------------------------------------------
+
+    try:
+        qr = await create_upi_qr(
+            amount=float(payment.amount),
+            reference_id=str(payment.id),
+            description=(
+                f"SmartCanteen "
+                f"Order #{payment.order_id}"
+            ),
+        )
+
+    except RazorpayServiceError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc),
+        ) from exc
+
+    qr_id = qr.get("id")
+
+    if not qr_id:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Razorpay did not return "
+                "a QR ID."
+            ),
+        )
+
+    payment.razorpay_qr_id = qr_id
+
+    payment.razorpay_qr_content = (
+        qr.get("image_content")
+    )
+
+    payment.razorpay_qr_image_url = (
+        qr.get("image_url")
+    )
+
+    payment.payment_method = "upi_qr"
+    payment.updated_at = utcnow()
+
+    db.commit()
+    db.refresh(payment)
+
+    return PaymentQRResponse(
+        payment_id=payment.id,
+        order_id=payment.order_id,
+        amount=float(payment.amount),
+        status=payment.status,
+        payment_method="upi_qr",
+        qr_id=qr_id,
+        qr_content=qr.get("image_content"),
+        qr_image_url=qr.get("image_url"),
+        razorpay_key_id=settings.RAZORPAY_KEY_ID,
+    )
+
+
+# ============================================================
+# FETCH CURRENT QR
+# ============================================================
+
+@router.get(
+    "/{payment_id}/qr",
+    response_model=PaymentQRResponse,
+)
+async def get_payment_qr(
+    payment_id: int,
+    current_user: User = Depends(
+        get_current_user,
+    ),
+    db: Session = Depends(get_db),
+):
+    payment = (
+        db.query(Payment)
+        .filter(
+            Payment.id == payment_id,
+        )
+        .first()
+    )
+
+    if not payment:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment not found",
+        )
+
+    if (
+        payment.user_id != current_user.id
+        and current_user.role != "admin"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized.",
+        )
+
+    if not payment.razorpay_qr_id:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "QR payment has not been created yet."
+            ),
+        )
+
+    try:
+        qr = await fetch_qr(
+            payment.razorpay_qr_id,
+        )
+    except RazorpayServiceError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc),
+        ) from exc
+
+    return PaymentQRResponse(
+        payment_id=payment.id,
+        order_id=payment.order_id,
+        amount=float(payment.amount),
+        status=payment.status,
+        payment_method=payment.payment_method,
+        qr_id=payment.razorpay_qr_id,
+        qr_content=payment.razorpay_qr_content,
+        qr_image_url=payment.razorpay_qr_image_url,
+        razorpay_key_id=settings.RAZORPAY_KEY_ID,
+    )
+
+
+# ============================================================
+# VERIFY NORMAL RAZORPAY CHECKOUT
 # ============================================================
 
 @router.post(
@@ -139,11 +345,11 @@ async def verify_payment(
     payment_id: int,
     payment_data: PaymentVerify,
     current_user: User = Depends(
-        get_current_user
+        get_current_user,
     ),
     db: Session = Depends(get_db),
 ):
-    return await verify_and_complete_payment(
+    payment = await verify_and_complete_payment(
         db=db,
         payment_id=payment_id,
         user_id=current_user.id,
@@ -158,6 +364,16 @@ async def verify_payment(
         ),
     )
 
+    response = PaymentResponse.model_validate(
+        payment,
+    )
+
+    response.razorpay_key_id = (
+        settings.RAZORPAY_KEY_ID
+    )
+
+    return response
+
 
 # ============================================================
 # RAZORPAY WEBHOOK
@@ -170,26 +386,18 @@ async def razorpay_webhook(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """
-    Receives Razorpay webhook events.
-
-    IMPORTANT:
-    The signature is calculated from the RAW request body.
-    Do not parse JSON before validating the signature.
-    """
-
     # --------------------------------------------------------
-    # 1. Read RAW request body
+    # RAW BODY
     # --------------------------------------------------------
 
     raw_body = await request.body()
 
     # --------------------------------------------------------
-    # 2. Get Razorpay signature
+    # SIGNATURE
     # --------------------------------------------------------
 
     signature = request.headers.get(
-        "X-Razorpay-Signature"
+        "X-Razorpay-Signature",
     )
 
     if not signature:
@@ -201,11 +409,11 @@ async def razorpay_webhook(
         )
 
     # --------------------------------------------------------
-    # 3. Get unique event ID
+    # EVENT ID
     # --------------------------------------------------------
 
     event_id = request.headers.get(
-        "x-razorpay-event-id"
+        "x-razorpay-event-id",
     )
 
     if not event_id:
@@ -217,7 +425,7 @@ async def razorpay_webhook(
         )
 
     # --------------------------------------------------------
-    # 4. Make sure webhook secret exists
+    # WEBHOOK SECRET
     # --------------------------------------------------------
 
     webhook_secret = (
@@ -234,7 +442,7 @@ async def razorpay_webhook(
         )
 
     # --------------------------------------------------------
-    # 5. Generate expected HMAC SHA256 signature
+    # VERIFY SIGNATURE
     # --------------------------------------------------------
 
     expected_signature = hmac.new(
@@ -242,10 +450,6 @@ async def razorpay_webhook(
         raw_body,
         hashlib.sha256,
     ).hexdigest()
-
-    # --------------------------------------------------------
-    # 6. Compare signatures securely
-    # --------------------------------------------------------
 
     if not hmac.compare_digest(
         expected_signature,
@@ -259,16 +463,16 @@ async def razorpay_webhook(
         )
 
     # --------------------------------------------------------
-    # 7. Check for duplicate event
+    # DUPLICATE EVENT
     # --------------------------------------------------------
 
     existing_event = (
         db.query(
-            RazorpayWebhookEvent
+            RazorpayWebhookEvent,
         )
         .filter(
             RazorpayWebhookEvent.event_id
-            == event_id
+            == event_id,
         )
         .first()
     )
@@ -280,43 +484,182 @@ async def razorpay_webhook(
         }
 
     # --------------------------------------------------------
-    # 8. Parse JSON AFTER signature verification
+    # PARSE JSON
     # --------------------------------------------------------
 
     try:
         payload = json.loads(
-            raw_body.decode("utf-8")
+            raw_body.decode("utf-8"),
         )
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
         raise HTTPException(
             status_code=400,
             detail="Invalid JSON payload.",
-        )
+        ) from exc
 
     event_type = payload.get(
-        "event"
+        "event",
     )
 
     # --------------------------------------------------------
-    # 9. Record webhook event
+    # RECORD EVENT
     # --------------------------------------------------------
 
-    webhook_event = (
-        RazorpayWebhookEvent(
-            event_id=event_id,
-            event_type=(
-                event_type or "unknown"
-            ),
-        )
+    webhook_event = RazorpayWebhookEvent(
+        event_id=event_id,
+        event_type=event_type or "unknown",
     )
 
     db.add(webhook_event)
 
     # ========================================================
-    # PAYMENT CAPTURED
+    # QR CODE CREDITED
     # ========================================================
 
-    if event_type == "payment.captured":
+    if event_type == "qr_code.credited":
+
+        payment_entity = (
+            payload
+            .get("payload", {})
+            .get("payment", {})
+            .get("entity", {})
+        )
+
+        qr_entity = (
+            payload
+            .get("payload", {})
+            .get("qr_code", {})
+            .get("entity", {})
+        )
+
+        razorpay_payment_id = (
+            payment_entity.get("id")
+        )
+
+        razorpay_qr_id = (
+            qr_entity.get("id")
+        )
+
+        payment = None
+
+        # ----------------------------------------------------
+        # Find by QR ID
+        # ----------------------------------------------------
+
+        if razorpay_qr_id:
+            payment = (
+                db.query(Payment)
+                .filter(
+                    Payment.razorpay_qr_id
+                    == razorpay_qr_id,
+                )
+                .first()
+            )
+
+        # ----------------------------------------------------
+        # Fallback: SmartCanteen payment ID
+        # ----------------------------------------------------
+
+        if not payment:
+            notes = (
+                payment_entity.get("notes")
+                or {}
+            )
+
+            smartcanteen_payment_id = (
+                notes.get(
+                    "smartcanteen_payment_id",
+                )
+            )
+
+            if smartcanteen_payment_id:
+                try:
+                    smart_id = int(
+                        smartcanteen_payment_id,
+                    )
+
+                    payment = (
+                        db.query(Payment)
+                        .filter(
+                            Payment.id == smart_id,
+                        )
+                        .first()
+                    )
+
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+                    payment = None
+
+        # ----------------------------------------------------
+        # Complete payment
+        # ----------------------------------------------------
+
+        if payment:
+
+            webhook_amount = (
+                payment_entity.get("amount")
+            )
+
+            expected_amount = int(
+                round(
+                    float(payment.amount)
+                    * 100,
+                )
+            )
+
+            if (
+                webhook_amount
+                != expected_amount
+            ):
+                db.rollback()
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "QR payment amount "
+                        "does not match the "
+                        "SmartCanteen payment."
+                    ),
+                )
+
+            if payment.status != "paid":
+
+                payment.status = "paid"
+
+                payment.payment_method = (
+                    "upi_qr"
+                )
+
+                payment.razorpay_payment_id = (
+                    razorpay_payment_id
+                )
+
+                payment.transaction_id = (
+                    razorpay_payment_id
+                )
+
+                payment.updated_at = utcnow()
+
+                if (
+                    payment.order
+                    and payment.order.status
+                    == "pending"
+                ):
+                    payment.order.status = (
+                        "confirmed"
+                    )
+
+                    payment.order.updated_at = (
+                        utcnow()
+                    )
+
+    # ========================================================
+    # NORMAL PAYMENT CAPTURED
+    # ========================================================
+
+    elif event_type == "payment.captured":
 
         payment_entity = (
             payload
@@ -333,54 +676,73 @@ async def razorpay_webhook(
             payment_entity.get("order_id")
         )
 
-        if not razorpay_order_id:
-            db.rollback()
+        if razorpay_order_id:
 
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Webhook is missing "
-                    "Razorpay order ID."
-                ),
+            payment = (
+                db.query(Payment)
+                .filter(
+                    Payment.razorpay_order_id
+                    == razorpay_order_id,
+                )
+                .first()
             )
 
-        payment = (
-            db.query(Payment)
-            .filter(
-                Payment.razorpay_order_id
-                == razorpay_order_id
-            )
-            .first()
-        )
+            if payment:
 
-        if payment:
-            # Never downgrade a successful
-            # payment back to another state.
-            if payment.status != "paid":
-
-                payment.status = "paid"
-
-                payment.razorpay_payment_id = (
-                    razorpay_payment_id
+                webhook_amount = (
+                    payment_entity.get(
+                        "amount",
+                    )
                 )
 
-                payment.transaction_id = (
-                    razorpay_payment_id
+                expected_amount = int(
+                    round(
+                        float(payment.amount)
+                        * 100,
+                    )
                 )
-
-                payment.updated_at = utcnow()
 
                 if (
-                    payment.order.status
-                    == "pending"
+                    webhook_amount
+                    != expected_amount
                 ):
-                    payment.order.status = (
-                        "confirmed"
+                    db.rollback()
+
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Payment amount "
+                            "does not match "
+                            "the order."
+                        ),
                     )
 
-                    payment.order.updated_at = (
-                        utcnow()
+                if payment.status != "paid":
+
+                    payment.status = "paid"
+
+                    payment.razorpay_payment_id = (
+                        razorpay_payment_id
                     )
+
+                    payment.transaction_id = (
+                        razorpay_payment_id
+                    )
+
+                    payment.updated_at = utcnow()
+
+                    if (
+                        payment.order
+                        and payment.order.status
+                        == "pending"
+                    ):
+                        payment.order.status = (
+                            "confirmed"
+                        )
+
+                        payment.order.updated_at = (
+                            utcnow()
+                        )
 
     # ========================================================
     # ORDER PAID
@@ -405,7 +767,7 @@ async def razorpay_webhook(
                 db.query(Payment)
                 .filter(
                     Payment.razorpay_order_id
-                    == razorpay_order_id
+                    == razorpay_order_id,
                 )
                 .first()
             )
@@ -419,7 +781,8 @@ async def razorpay_webhook(
                     )
 
                 if (
-                    payment.order.status
+                    payment.order
+                    and payment.order.status
                     == "pending"
                 ):
                     payment.order.status = (
@@ -457,20 +820,17 @@ async def razorpay_webhook(
                 db.query(Payment)
                 .filter(
                     Payment.razorpay_order_id
-                    == razorpay_order_id
+                    == razorpay_order_id,
                 )
                 .first()
             )
 
             if payment:
 
-                # Never overwrite an already
-                # successful payment.
+                # Do not downgrade successful payments.
                 if payment.status != "paid":
 
-                    payment.status = (
-                        "failed"
-                    )
+                    payment.status = "failed"
 
                     payment.razorpay_payment_id = (
                         razorpay_payment_id
@@ -485,12 +845,10 @@ async def razorpay_webhook(
     # ========================================================
 
     else:
-        # We record the event but don't modify
-        # SmartCanteen payment state.
         pass
 
     # --------------------------------------------------------
-    # 10. Save everything
+    # COMMIT
     # --------------------------------------------------------
 
     db.commit()
