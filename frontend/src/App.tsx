@@ -68,6 +68,7 @@ import { CartProvider } from "./context/CartContext";
 import SplashScreen from "./components/SplashScreen";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import CookieConsent from "./components/CookieConsent";
 
 /* ============================================================
    CUSTOMER LAYOUT
@@ -155,7 +156,7 @@ function App() {
      APPLICATION
   ========================================================== */
 
-  return (
+return (
     <div className="app-enter">
       <CartProvider>
         <Routes>
@@ -333,24 +334,20 @@ function App() {
               INFO PAGES
           ================================================== */}
 
-<Route
-  path="/faq"
-  element={<FAQ />}
-/>
+          <Route
+            path="/faq"
+            element={<FAQ />}
+          />
 
-<Route
-  path="/privacy-policy"
-  element={<PrivacyPolicy />}
-/>
+          <Route
+            path="/privacy-policy"
+            element={<PrivacyPolicy />}
+          />
 
-<Route
-  path="/cookies"
-  element={<Cookies />}
-/>
-
-          {/* ==================================================
-              DEFAULT
-          ================================================== */}
+          <Route
+            path="/cookies"
+            element={<Cookies />}
+          />
 
           <Route
             path="/"
@@ -361,10 +358,6 @@ function App() {
               />
             }
           />
-
-          {/* ==================================================
-              UNKNOWN ROUTES
-          ================================================== */}
 
           <Route
             path="*"
@@ -378,6 +371,9 @@ function App() {
 
         </Routes>
       </CartProvider>
+
+      <CookieConsent />
+
     </div>
   );
 }
