@@ -1,11 +1,15 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.utils.time import utcnow
 from app.db.database import Base
+
+if TYPE_CHECKING:
+    from app.models.inventory import Inventory
+    from app.models.order import OrderItem
 
 
 class Category(Base):
@@ -40,6 +44,6 @@ class MenuItem(Base):
     order_items: Mapped[list["OrderItem"]] = relationship(
         "OrderItem", back_populates="menu_item"
     )
-    inventory: Mapped[list["Inventory"]] = relationship(
-        "Inventory", back_populates="menu_item", cascade="all, delete-orphan"
+    inventory: Mapped["Inventory | None"] = relationship(
+        "Inventory", back_populates="menu_item", cascade="all, delete-orphan", uselist=False
     )

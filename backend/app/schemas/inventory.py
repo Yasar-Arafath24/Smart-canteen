@@ -1,25 +1,46 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class InventoryCreate(BaseModel):
-    menu_item_id: int
-    quantity: int = Field(ge=0)
-    unit: str = Field(default="pcs", min_length=1, max_length=20)
+    menu_item_id: int = Field(
+        ge=1,
+    )
+
+    quantity: int = Field(
+        ge=0,
+    )
+
+    unit: str = Field(
+        default="units",
+        min_length=1,
+        max_length=30,
+    )
 
 
 class InventoryUpdate(BaseModel):
-    quantity: int = Field(ge=0)
-    unit: Optional[str] = Field(default=None, min_length=1, max_length=20)
+    quantity: int | None = Field(
+        default=None,
+        ge=0,
+    )
+
+    unit: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=30,
+    )
 
 
 class InventoryOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
     id: int
     menu_item_id: int
+    menu_item_name: str
     quantity: int
     unit: str
-    last_updated: datetime
+    created_at: datetime
+    updated_at: datetime

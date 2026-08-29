@@ -1,32 +1,40 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
-    get_current_user,
     get_current_admin,
     get_current_staff_or_admin,
+    get_current_user,
 )
 
-from app.db.database import get_db
-from app.models.user import User
-
-from app.schemas.inventory import (
-    InventoryCreate,
-    InventoryUpdate,
-    InventoryOut,
+from app.crud.activity import (
+    create_activity,
 )
 
 from app.crud.inventory import (
     create_inventory,
+    delete_inventory,
     get_inventory,
     get_inventory_by_id,
     update_inventory,
-    delete_inventory,
 )
 
-from app.crud.activity import create_activity
+from app.db.database import get_db
+
+from app.models.user import User
+
+from app.schemas.inventory import (
+    InventoryCreate,
+    InventoryOut,
+    InventoryUpdate,
+)
 
 from app.services.admin_ws import (
     admin_analytics_manager,
@@ -45,8 +53,8 @@ router = APIRouter(
 
 
 # ============================================================
+# GET ALL
 # CUSTOMER / STAFF / ADMIN
-# GET ALL INVENTORY
 # ============================================================
 
 @router.get(
@@ -63,8 +71,8 @@ def list_inventory(
 
 
 # ============================================================
+# GET ONE
 # CUSTOMER / STAFF / ADMIN
-# GET ONE INVENTORY
 # ============================================================
 
 @router.get(
@@ -93,8 +101,8 @@ def get_one_inventory(
 
 
 # ============================================================
+# CREATE
 # ADMIN ONLY
-# CREATE INVENTORY
 # ============================================================
 
 @router.post(
@@ -102,13 +110,30 @@ def get_one_inventory(
     response_model=InventoryOut,
     status_code=status.HTTP_201_CREATED,
 )
-def create(
+async def create(
     inventory_data: InventoryCreate,
     current_admin: User = Depends(
         get_current_admin
     ),
     db: Session = Depends(get_db),
 ):
+    existing = (
+        get_inventory(db)
+    )
+
+    for item in existing:
+        if (
+            item.menu_item_id
+            == inventory_data.menu_item_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Inventory already exists "
+                    "for this menu item."
+                ),
+            )
+
     inventory = create_inventory(
         db=db,
         inventory_data=inventory_data,
@@ -117,7 +142,10 @@ def create(
     if not inventory:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unable to create inventory.",
+            detail=(
+                "Unable to create inventory. "
+                "Check the menu item."
+            ),
         )
 
     create_activity(
@@ -127,22 +155,30 @@ def create(
         entity_type="inventory",
         entity_id=inventory.menu_item_id,
         description=(
-            f"Inventory for menu item "
-            f"#{inventory.menu_item_id} "
-            f"was created with quantity "
-            f"{inventory.quantity}."
+            f"{inventory.menu_item_name} "
+            f"inventory was created with "
+            f"{inventory.quantity} "
+            f"{inventory.unit}."
         ),
     )
 
     db.commit()
     db.refresh(inventory)
 
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "INVENTORY_CREATED",
+            "menu_item_id": inventory.menu_item_id,
+            "quantity": inventory.quantity,
+        }
+    )
+
     return inventory
 
 
 # ============================================================
+# FULL UPDATE
 # ADMIN ONLY
-# FULL INVENTORY UPDATE
 # ============================================================
 
 @router.put(
@@ -184,40 +220,15 @@ async def update(
             detail="Inventory not found",
         )
 
-    current_quantity = int(
+    quantity = int(
         updated_inventory.quantity
     )
 
     menu_item_name = (
-        getattr(
-            updated_inventory,
-            "menu_item_name",
-            None,
-        )
-        or getattr(
-            getattr(
-                updated_inventory,
-                "menu_item",
-                None,
-            ),
-            "name",
-            None,
-        )
-        or (
-            f"Menu Item "
-            f"#{updated_inventory.menu_item_id}"
-        )
+        updated_inventory.menu_item_name
     )
 
-    unit = getattr(
-        updated_inventory,
-        "unit",
-        "units",
-    )
-
-    # --------------------------------------------------------
-    # ACTIVITY LOG
-    # --------------------------------------------------------
+    unit = updated_inventory.unit
 
     create_activity(
         db=db,
@@ -230,18 +241,39 @@ async def update(
             f"changed from "
             f"{previous_quantity} "
             f"to "
-            f"{current_quantity} "
+            f"{quantity} "
             f"{unit}."
         ),
     )
 
-    # --------------------------------------------------------
-    # LOW / OUT OF STOCK NOTIFICATIONS
-    # --------------------------------------------------------
-
     if (
+        previous_quantity > 5
+        and 0 < quantity <= 5
+    ):
+        await notify_staff_low_stock(
+            db=db,
+            menu_item_name=menu_item_name,
+            quantity=quantity,
+            unit=unit,
+        )
+
+        create_activity(
+            db=db,
+            actor=current_admin,
+            action="inventory_low_stock",
+            entity_type="inventory",
+            entity_id=updated_inventory.menu_item_id,
+            description=(
+                f"{menu_item_name} is now "
+                f"low stock with "
+                f"{quantity} "
+                f"{unit} remaining."
+            ),
+        )
+
+    elif (
         previous_quantity > 0
-        and current_quantity == 0
+        and quantity == 0
     ):
         await notify_staff_out_of_stock(
             db=db,
@@ -260,34 +292,8 @@ async def update(
             ),
         )
 
-    elif (
-        previous_quantity > 5
-        and 0 < current_quantity <= 5
-    ):
-        await notify_staff_low_stock(
-            db=db,
-            menu_item_name=menu_item_name,
-            quantity=current_quantity,
-            unit=unit,
-        )
-
-        create_activity(
-            db=db,
-            actor=current_admin,
-            action="inventory_low_stock",
-            entity_type="inventory",
-            entity_id=updated_inventory.menu_item_id,
-            description=(
-                f"{menu_item_name} "
-                f"is now low stock with "
-                f"{current_quantity} "
-                f"{unit} remaining."
-            ),
-        )
-
-    # --------------------------------------------------------
-    # REAL-TIME ADMIN ANALYTICS
-    # --------------------------------------------------------
+    db.commit()
+    db.refresh(updated_inventory)
 
     await admin_analytics_manager.broadcast(
         {
@@ -301,15 +307,12 @@ async def update(
         }
     )
 
-    db.commit()
-    db.refresh(updated_inventory)
-
     return updated_inventory
 
 
 # ============================================================
+# PARTIAL UPDATE
 # STAFF + ADMIN
-# STOCK / OPERATIONAL UPDATE
 # ============================================================
 
 @router.patch(
@@ -351,44 +354,15 @@ async def patch(
             detail="Inventory not found",
         )
 
-    current_quantity = int(
+    quantity = int(
         updated_inventory.quantity
     )
 
-    # --------------------------------------------------------
-    # MENU ITEM NAME
-    # --------------------------------------------------------
-
     menu_item_name = (
-        getattr(
-            updated_inventory,
-            "menu_item_name",
-            None,
-        )
-        or getattr(
-            getattr(
-                updated_inventory,
-                "menu_item",
-                None,
-            ),
-            "name",
-            None,
-        )
-        or (
-            f"Menu Item "
-            f"#{updated_inventory.menu_item_id}"
-        )
+        updated_inventory.menu_item_name
     )
 
-    unit = getattr(
-        updated_inventory,
-        "unit",
-        "units",
-    )
-
-    # --------------------------------------------------------
-    # ACTIVITY LOG
-    # --------------------------------------------------------
+    unit = updated_inventory.unit
 
     create_activity(
         db=db,
@@ -401,19 +375,39 @@ async def patch(
             f"changed from "
             f"{previous_quantity} "
             f"to "
-            f"{current_quantity} "
+            f"{quantity} "
             f"{unit}."
         ),
     )
 
-    # --------------------------------------------------------
-    # OUT OF STOCK
-    # ONLY WHEN CROSSING INTO ZERO
-    # --------------------------------------------------------
-
     if (
+        previous_quantity > 5
+        and 0 < quantity <= 5
+    ):
+        await notify_staff_low_stock(
+            db=db,
+            menu_item_name=menu_item_name,
+            quantity=quantity,
+            unit=unit,
+        )
+
+        create_activity(
+            db=db,
+            actor=current_user,
+            action="inventory_low_stock",
+            entity_type="inventory",
+            entity_id=updated_inventory.menu_item_id,
+            description=(
+                f"{menu_item_name} "
+                f"is now low stock with "
+                f"{quantity} "
+                f"{unit} remaining."
+            ),
+        )
+
+    elif (
         previous_quantity > 0
-        and current_quantity == 0
+        and quantity == 0
     ):
         await notify_staff_out_of_stock(
             db=db,
@@ -432,39 +426,8 @@ async def patch(
             ),
         )
 
-    # --------------------------------------------------------
-    # LOW STOCK
-    # ONLY WHEN CROSSING FROM >5 TO <=5
-    # --------------------------------------------------------
-
-    elif (
-        previous_quantity > 5
-        and 0 < current_quantity <= 5
-    ):
-        await notify_staff_low_stock(
-            db=db,
-            menu_item_name=menu_item_name,
-            quantity=current_quantity,
-            unit=unit,
-        )
-
-        create_activity(
-            db=db,
-            actor=current_user,
-            action="inventory_low_stock",
-            entity_type="inventory",
-            entity_id=updated_inventory.menu_item_id,
-            description=(
-                f"{menu_item_name} "
-                f"is now low stock with "
-                f"{current_quantity} "
-                f"{unit} remaining."
-            ),
-        )
-
-    # --------------------------------------------------------
-    # REAL-TIME ADMIN ANALYTICS
-    # --------------------------------------------------------
+    db.commit()
+    db.refresh(updated_inventory)
 
     await admin_analytics_manager.broadcast(
         {
@@ -478,21 +441,18 @@ async def patch(
         }
     )
 
-    db.commit()
-    db.refresh(updated_inventory)
-
     return updated_inventory
 
 
 # ============================================================
+# DELETE
 # ADMIN ONLY
-# DELETE INVENTORY
 # ============================================================
 
 @router.delete(
     "/{inventory_id}",
 )
-def delete(
+async def delete(
     inventory_id: int,
     current_admin: User = Depends(
         get_current_admin
@@ -515,30 +475,19 @@ def delete(
     )
 
     menu_item_name = (
-        getattr(
-            inventory,
-            "menu_item_name",
-            None,
-        )
-        or getattr(
-            getattr(
-                inventory,
-                "menu_item",
-                None,
-            ),
-            "name",
-            None,
-        )
-        or (
-            f"Menu Item "
-            f"#{menu_item_id}"
-        )
+        inventory.menu_item_name
     )
 
-    delete_inventory(
+    deleted = delete_inventory(
         db=db,
         inventory_id=inventory_id,
     )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Inventory not found",
+        )
 
     create_activity(
         db=db,
@@ -554,6 +503,14 @@ def delete(
     )
 
     db.commit()
+
+    await admin_analytics_manager.broadcast(
+        {
+            "type": "INVENTORY_DELETED",
+            "menu_item_id": menu_item_id,
+            "quantity": 0,
+        }
+    )
 
     return {
         "message": (

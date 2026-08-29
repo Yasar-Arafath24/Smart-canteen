@@ -1,31 +1,28 @@
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.inventory import Inventory
 from app.models.menu import MenuItem
-from app.schemas.inventory import InventoryCreate, InventoryUpdate
-from app.utils.time import utcnow
+from app.schemas.inventory import (
+    InventoryCreate,
+    InventoryUpdate,
+)
 
-
-# ============================================================
-# CREATE INVENTORY
-# ============================================================
 
 def create_inventory(
     db: Session,
     inventory_data: InventoryCreate,
 ):
-    menu = (
+    menu_item = (
         db.query(MenuItem)
-        .filter(MenuItem.id == inventory_data.menu_item_id)
+        .filter(
+            MenuItem.id
+            == inventory_data.menu_item_id
+        )
         .first()
     )
 
-    if not menu:
-        raise HTTPException(
-            status_code=404,
-            detail="Menu item not found",
-        )
+    if not menu_item:
+        return None
 
     existing = (
         db.query(Inventory)
@@ -37,43 +34,60 @@ def create_inventory(
     )
 
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="Inventory already exists for this menu item",
-        )
+        return None
 
     inventory = Inventory(
-        menu_item_id=menu.id,
-        quantity=inventory_data.quantity,
-        unit=inventory_data.unit,
-        last_updated=utcnow(),
+        menu_item_id=(
+            inventory_data.menu_item_id
+        ),
+        quantity=(
+            inventory_data.quantity
+        ),
+        unit=(
+            inventory_data.unit.strip()
+            or "units"
+        ),
     )
 
-    # Keep menu stock synchronized
-    menu.stock = inventory_data.quantity
-
     db.add(inventory)
-    db.commit()
-    db.refresh(inventory)
 
-    return inventory
+    # Keep menu stock synchronized.
+    menu_item.stock = (
+        inventory_data.quantity
+    )
 
+    db.flush()
 
-# ============================================================
-# GET ALL INVENTORY
-# ============================================================
-
-def get_inventory(db: Session):
     return (
         db.query(Inventory)
-        .order_by(Inventory.menu_item_id)
+        .options(
+            joinedload(
+                Inventory.menu_item
+            )
+        )
+        .filter(
+            Inventory.id == inventory.id
+        )
+        .first()
+    )
+
+
+def get_inventory(
+    db: Session,
+):
+    return (
+        db.query(Inventory)
+        .options(
+            joinedload(
+                Inventory.menu_item
+            )
+        )
+        .order_by(
+            Inventory.id.desc()
+        )
         .all()
     )
 
-
-# ============================================================
-# GET ONE INVENTORY BY INVENTORY ID
-# ============================================================
 
 def get_inventory_by_id(
     db: Session,
@@ -81,88 +95,96 @@ def get_inventory_by_id(
 ):
     return (
         db.query(Inventory)
-        .filter(Inventory.id == inventory_id)
-        .first()
-    )
-
-
-# ============================================================
-# GET INVENTORY BY MENU ITEM
-# Useful internally
-# ============================================================
-
-def get_inventory_by_menu_item(
-    db: Session,
-    menu_item_id: int,
-):
-    return (
-        db.query(Inventory)
+        .options(
+            joinedload(
+                Inventory.menu_item
+            )
+        )
         .filter(
-            Inventory.menu_item_id == menu_item_id
+            Inventory.id == inventory_id
         )
         .first()
     )
 
-
-# ============================================================
-# UPDATE INVENTORY BY INVENTORY ID
-# ============================================================
 
 def update_inventory(
     db: Session,
     inventory_id: int,
     inventory_data: InventoryUpdate,
 ):
-    inventory = get_inventory_by_id(
-        db,
-        inventory_id,
+    inventory = (
+        db.query(Inventory)
+        .options(
+            joinedload(
+                Inventory.menu_item
+            )
+        )
+        .filter(
+            Inventory.id == inventory_id
+        )
+        .first()
     )
 
     if not inventory:
-        raise HTTPException(
-            status_code=404,
-            detail="Inventory not found",
+        return None
+
+    if inventory_data.quantity is not None:
+        inventory.quantity = (
+            inventory_data.quantity
         )
 
-    inventory.quantity = inventory_data.quantity
+        if inventory.menu_item:
+            inventory.menu_item.stock = (
+                inventory_data.quantity
+            )
 
     if inventory_data.unit is not None:
-        inventory.unit = inventory_data.unit
+        inventory.unit = (
+            inventory_data.unit.strip()
+            or "units"
+        )
 
-    inventory.last_updated = utcnow()
+    db.flush()
 
-    # Keep menu stock synchronized
-    inventory.menu_item.stock = inventory.quantity
+    return (
+        db.query(Inventory)
+        .options(
+            joinedload(
+                Inventory.menu_item
+            )
+        )
+        .filter(
+            Inventory.id == inventory.id
+        )
+        .first()
+    )
 
-    db.commit()
-    db.refresh(inventory)
-
-    return inventory
-
-
-# ============================================================
-# DELETE INVENTORY BY INVENTORY ID
-# ============================================================
 
 def delete_inventory(
     db: Session,
     inventory_id: int,
 ):
-    inventory = get_inventory_by_id(
-        db,
-        inventory_id,
+    inventory = (
+        db.query(Inventory)
+        .options(
+            joinedload(
+                Inventory.menu_item
+            )
+        )
+        .filter(
+            Inventory.id == inventory_id
+        )
+        .first()
     )
 
     if not inventory:
-        raise HTTPException(
-            status_code=404,
-            detail="Inventory not found",
-        )
+        return None
 
-    # Reset menu stock before deleting inventory
-    inventory.menu_item.stock = 0
+    # When inventory is removed, menu item stock becomes 0.
+    if inventory.menu_item:
+        inventory.menu_item.stock = 0
 
     db.delete(inventory)
-    db.commit()
+    db.flush()
 
     return inventory
