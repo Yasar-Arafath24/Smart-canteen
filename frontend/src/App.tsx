@@ -59,7 +59,9 @@ import ResetPassword from "./pages/auth/ResetPassword";
    OTHER PAGES / COMPONENTS
 ============================================================ */
 
-import InfoPage from "./pages/InfoPage";
+import FAQ from "./pages/FAQ";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Cookies from "./pages/Cookies";
 
 import { CartProvider } from "./context/CartContext";
 
@@ -331,35 +333,20 @@ function App() {
               INFO PAGES
           ================================================== */}
 
-          <Route
-            path="/faq"
-            element={
-              <InfoPage
-                title="FAQ"
-                description="Frequently asked questions"
-              />
-            }
-          />
+<Route
+  path="/faq"
+  element={<FAQ />}
+/>
 
-          <Route
-            path="/privacy-policy"
-            element={
-              <InfoPage
-                title="Privacy Policy"
-                description="How we handle your data"
-              />
-            }
-          />
+<Route
+  path="/privacy-policy"
+  element={<PrivacyPolicy />}
+/>
 
-          <Route
-            path="/cookies"
-            element={
-              <InfoPage
-                title="Cookies"
-                description="How we use cookies"
-              />
-            }
-          />
+<Route
+  path="/cookies"
+  element={<Cookies />}
+/>
 
           {/* ==================================================
               DEFAULT
